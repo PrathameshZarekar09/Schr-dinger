@@ -1,0 +1,143 @@
+<style>
+  .panel-root {
+    flex-direction: column;
+    width: 460px;
+    background-color: rgba(10, 16, 28, 0.94);
+    border-radius: 16px;
+    border-width: 1px;
+    border-color: rgba(0, 242, 254, 0.4);
+    padding: 20px;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 26px;
+    letter-spacing: -0.5px;
+    color: #00f2fe;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 16px;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .divider {
+    height: 1px;
+    background-color: rgba(255, 255, 255, 0.12);
+    margin-top: 8px;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f8fafc;
+    margin-bottom: 4px;
+  }
+
+  .description {
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 17px;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+  }
+
+  .formula-box {
+    background-color: rgba(121, 40, 202, 0.18);
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: rgba(121, 40, 202, 0.5);
+    padding: 8px 12px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .formula-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: #d8b4fe;
+    text-align: center;
+  }
+
+  .guide-box {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 8px 12px;
+    flex-direction: column;
+    margin-bottom: 12px;
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .guide-item {
+    font-size: 12px;
+    line-height: 17px;
+    color: #e2e8f0;
+  }
+
+  .button-row {
+    flex-direction: row;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .action-btn {
+    flex-grow: 1;
+    height: 38px;
+    border-radius: 8px;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+
+<Panel class="panel-root">
+  <div class="header">
+    <div class="title">SCHRÖDINGER'S CAT</div>
+    <div class="subtitle">WebXR Quantum Superposition Paradox</div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section-title">The Thought Experiment</div>
+  <div class="description">
+    A radioactive isotope has a 50% chance of decaying. If it decays, a Geiger counter detects radiation, triggering a relay hammer to smash a vial of hydrocyanic poison, killing the cat. According to the Copenhagen interpretation, prior to observation the entire system remains in a linear superposition:
+  </div>
+
+  <div class="formula-box">
+    <div class="formula-text">|Ψ⟩ = (1/√2)|Alive⟩ + (1/√2)|Dead⟩</div>
+  </div>
+
+  <div class="section-title">Hand Interactions & Orientation</div>
+  <div class="guide-box">
+    <div class="guide-item">🤏 Pinch / Grab: Lift or lower the chamber's steel lid</div>
+    <div class="guide-item">👆 Index Poke: Press interactive controls on the workstation</div>
+    <div class="guide-item">👁️ Observation: Opening the box collapses the wave function</div>
+  </div>
+
+  <div class="button-row">
+    <Button id="xr-button" variant="primary" class="action-btn">
+      <ButtonLabel>Enter WebXR</ButtonLabel>
+    </Button>
+    <Button id="start-btn" variant="secondary" class="action-btn">
+      <ButtonLabel>Begin Setup</ButtonLabel>
+    </Button>
+    <Button id="quantum-peek-btn" variant="ghost" class="action-btn">
+      <ButtonLabel>Quantum Peek</ButtonLabel>
+    </Button>
+  </div>
+</Panel>

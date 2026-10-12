@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no"
+    />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚛️</text></svg>" />
+    <title>Schrödinger's Cat — WebXR Quantum Simulation</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "/node_modules/three/build/three.module.js",
+          "three/addons/": "/node_modules/three/examples/jsm/"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        --bg-color: #060911;
+        --accent-cyan: #00f2fe;
+        --accent-purple: #a855f7;
+        --accent-amber: #f59e0b;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --text-color: #e2e8f0;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: var(--bg-color);
+        font-family: 'Outfit', sans-serif;
+        color: var(--text-color);
+        user-select: none;
+      }
+      #scene-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+      #top-hud {
+        position: absolute;
+        top: 18px;
+        left: 20px;
+        z-index: 10;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(0, 242, 254, 0.35);
+        backdrop-filter: blur(14px);
+        padding: 7px 16px;
+        border-radius: 9999px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #94a3b8;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      }
+      .badge-glow {
+        color: var(--accent-cyan);
+        text-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+      }
+      .live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--accent-cyan);
+        box-shadow: 0 0 8px var(--accent-cyan);
+        animation: pulse 1.6s infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.35; transform: scale(0.8); }
+      }
+      #quick-controls {
+        position: absolute;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(16px);
+        padding: 8px 14px;
+        border-radius: 30px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+      }
+      .btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #f8fafc;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-family: 'Outfit', sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn:hover {
+        background: rgba(255, 255, 255, 0.18);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 242, 254, 0.25);
+      }
+      .btn-amber {
+        border-color: rgba(245, 158, 11, 0.5);
+        color: #fde68a;
+      }
+      .btn-cyan {
+        border-color: rgba(0, 242, 254, 0.5);
+        color: #67e8f9;
+      }
+      .btn-purple {
+        border-color: rgba(168, 85, 247, 0.5);
+        color: #e9d5ff;
+      }
+      #webxr-enter-btn {
+        position: absolute !important;
+        bottom: 84px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        z-index: 20 !important;
+        background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%) !important;
+        color: #080c14 !important;
+        font-family: 'Outfit', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        padding: 12px 28px !important;
+        border-radius: 9999px !important;
+        border: none !important;
+        box-shadow: 0 0 24px rgba(0, 242, 254, 0.5) !important;
+        cursor: pointer !important;
+        transition: transform 0.2s, box-shadow 0.2s !important;
+      }
+      #webxr-enter-btn:hover {
+        transform: translateX(-50%) scale(1.04) !important;
+        box-shadow: 0 0 32px rgba(0, 242, 254, 0.8) !important;
+      }
+      #gesture-legend {
+        position: absolute;
+        top: 18px;
+        right: 20px;
+        z-index: 10;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(14px);
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-size: 12px;
+        color: #94a3b8;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .legend-title {
+        font-weight: 700;
+        color: #f1f5f9;
+        font-size: 13px;
+        margin-bottom: 2px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #cbd5e1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="scene-container"></div>
+
+    <div id="top-hud">
+      <div class="badge">
+        <span class="live-dot"></span>
+        <span>SCHRÖDINGER'S CAT: <span class="badge-glow">QUANTUM WEBXR</span></span>
+      </div>
+      <div class="badge" style="border-color: rgba(168, 85, 247, 0.4);">
+        <span>INTERACTIONS: <span style="color:#c084fc;">HAND TRACKING + SPATIAL ORIENTATION</span></span>
+      </div>
+    </div>
+
+    <div id="gesture-legend">
+      <div class="legend-title">🤲 Hand Gestures (VR):</div>
+      <div class="legend-item"><span>🤏 Pinch:</span> <span>Grab lid to Seal / Open</span></div>
+      <div class="legend-item"><span>👆 Point:</span> <span>Poke 3D table buttons</span></div>
+      <div class="legend-item"><span>👁️ Observe:</span> <span>Look inside to collapse</span></div>
+    </div>
+
+    <div id="quick-controls">
+      <button id="btn-hud-seal" class="btn btn-amber">🔒 Seal Chamber</button>
+      <button id="btn-hud-observe" class="btn btn-cyan">👁️ Observe & Collapse</button>
+      <button id="btn-hud-peek" class="btn btn-purple">🔮 Quantum Peek</button>
+      <button id="btn-hud-reset" class="btn">🔄 Reset</button>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+    <script type="module">
+      // Link HUD buttons to 3D scene actions
+      document.getElementById('btn-hud-seal').addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('app-action', { detail: 'seal' }));
+        const mesh = window.__toggleChamberSeal;
+        if (mesh) mesh();
+      });
+      document.getElementById('btn-hud-observe').addEventListener('click', () => {
+        const mesh = window.__observeChamber;
+        if (mesh) mesh();
+      });
+      document.getElementById('btn-hud-peek').addEventListener('click', () => {
+        const mesh = window.__toggleQuantumPeek;
+        if (mesh) mesh();
+      });
+      document.getElementById('btn-hud-reset').addEventListener('click', () => {
+        const mesh = window.__resetExperiment;
+        if (mesh) mesh();
+      });
+    </script>
+  </body>
+</html>
