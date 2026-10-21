@@ -41,7 +41,7 @@ const camera = new THREE.PerspectiveCamera(
   0.05,
   100
 );
-camera.position.set(0.15, 1.52, 2.45);
+camera.position.set(0.20, 1.52, 2.50);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -62,7 +62,7 @@ document.body.appendChild(xrButton);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.target.set(0.15, 1.15, 0.05);
+controls.target.set(0.20, 1.15, 0.20);
 controls.maxPolarAngle = Math.PI / 2 + 0.05;
 controls.minDistance = 0.4;
 controls.maxDistance = 6.0;
@@ -93,10 +93,25 @@ const violetRim = new THREE.PointLight(0xa855f7, 2.2, 6);
 violetRim.position.set(1.4, 1.6, -0.6);
 scene.add(violetRim);
 
-// Poison Green Glow (under vial)
+// Poison Green Glow (under vial - added to modelRoot so it rotates with the model)
 const poisonGlow = new THREE.PointLight(0x10b981, 0.2, 2.0);
 poisonGlow.position.set(-0.38, 0.88, 0.38);
-scene.add(poisonGlow);
+
+// ==========================================
+// INTERACTIVE MODEL ROOT
+// Contains the entire experiment (table, chamber, cat, screen)
+// Rotate via 1-hand middle pinch, zoom via 2-hand middle pinch
+// ==========================================
+const modelRoot = new THREE.Group();
+modelRoot.name = 'Entire_Model_Root';
+scene.add(modelRoot);
+
+// Reference container for tabletop buttons
+const tableButtons = {
+  sealBtn: null,
+  observeBtn: null,
+  resetBtn: null,
+};
 
 // ==========================================
 // WEBXR HAND TRACKING & CONTROLLERS
@@ -135,7 +150,7 @@ const ray1 = buildControllerRay();
 controller0.add(ray0);
 controller1.add(ray1);
 
-// Interaction markers at index fingertips
+// Interaction markers at index fingertips (Index + Thumb pinch: box lid / buttons)
 const tipGeo = new THREE.SphereGeometry(0.012, 16, 16);
 const tipMat0 = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.8 });
 const tipMat1 = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.8 });
@@ -143,6 +158,22 @@ const indexMarker0 = new THREE.Mesh(tipGeo, tipMat0);
 const indexMarker1 = new THREE.Mesh(tipGeo, tipMat1);
 scene.add(indexMarker0);
 scene.add(indexMarker1);
+
+// Interaction markers at middle fingertips (Middle + Thumb pinch: Zoom & Rotate entire model)
+const middleTipGeo = new THREE.SphereGeometry(0.013, 16, 16);
+const middleTipMat0 = new THREE.MeshStandardMaterial({
+  color: 0xa855f7,
+  emissive: 0x7e22ce,
+  emissiveIntensity: 0.7,
+  roughness: 0.2,
+});
+const middleTipMat1 = middleTipMat0.clone();
+const middleMarker0 = new THREE.Mesh(middleTipGeo, middleTipMat0);
+const middleMarker1 = new THREE.Mesh(middleTipGeo, middleTipMat1);
+middleMarker0.visible = false;
+middleMarker1.visible = false;
+scene.add(middleMarker0);
+scene.add(middleMarker1);
 
 // Raycaster for pointers & mouse
 const raycaster = new THREE.Raycaster();
@@ -155,27 +186,27 @@ const interactableObjects = [];
 function buildLabEnvironment() {
   const envGroup = new THREE.Group();
 
-  // 1. Sleek Heavy Laboratory Table (Wider for scaled box and side panel)
-  const tableTopGeo = new THREE.BoxGeometry(3.1, 0.06, 1.85);
+  // 1. Sleek Heavy Laboratory Table (Wider for scaled box and separated side panel)
+  const tableTopGeo = new THREE.BoxGeometry(4.0, 0.06, 1.95);
   const tableTopMat = new THREE.MeshStandardMaterial({
     color: 0x161e2e,
     metalness: 0.85,
     roughness: 0.22,
   });
   const tableTop = new THREE.Mesh(tableTopGeo, tableTopMat);
-  tableTop.position.set(0, 0.76, 0.05);
+  tableTop.position.set(0.25, 0.76, 0.05);
   tableTop.receiveShadow = true;
   envGroup.add(tableTop);
 
   // Table Edge Glow (Cyan Neon Strip)
-  const edgeGeo = new THREE.BoxGeometry(3.12, 0.014, 1.87);
+  const edgeGeo = new THREE.BoxGeometry(4.02, 0.014, 1.97);
   const edgeMat = new THREE.MeshBasicMaterial({
     color: 0x00f2fe,
     transparent: true,
     opacity: 0.8,
   });
   const edge = new THREE.Mesh(edgeGeo, edgeMat);
-  edge.position.set(0, 0.79, 0.05);
+  edge.position.set(0.25, 0.79, 0.05);
   envGroup.add(edge);
 
   // 4 Table Legs
@@ -186,10 +217,10 @@ function buildLabEnvironment() {
     roughness: 0.2,
   });
   const legPositions = [
-    [-1.45, 0.38, -0.82],
-    [1.45, 0.38, -0.82],
-    [-1.45, 0.38, 0.82],
-    [1.45, 0.38, 0.82],
+    [-1.65, 0.38, -0.85],
+    [2.15, 0.38, -0.85],
+    [-1.65, 0.38, 0.85],
+    [2.15, 0.38, 0.85],
   ];
   legPositions.forEach(([x, y, z]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
@@ -199,12 +230,12 @@ function buildLabEnvironment() {
   });
 
   // Table Crossbar braces
-  const braceGeo = new THREE.BoxGeometry(2.9, 0.02, 0.04);
+  const braceGeo = new THREE.BoxGeometry(3.8, 0.02, 0.04);
   const brace = new THREE.Mesh(braceGeo, legMat);
-  brace.position.set(0, 0.2, -0.82);
+  brace.position.set(0.25, 0.2, -0.85);
   envGroup.add(brace);
 
-  // 2. Quantum Grid Floor
+  // 2. Quantum Grid Floor (Fixed in world room)
   const floorGeo = new THREE.PlaneGeometry(24, 24, 32, 32);
   const floorMat = new THREE.MeshStandardMaterial({
     color: 0x080d1a,
@@ -216,7 +247,7 @@ function buildLabEnvironment() {
   floor.rotation.x = -Math.PI / 2;
   floor.position.y = 0;
   floor.receiveShadow = true;
-  envGroup.add(floor);
+  scene.add(floor);
 
   // Solid dark floor beneath grid
   const solidFloorGeo = new THREE.PlaneGeometry(24, 24);
@@ -224,7 +255,7 @@ function buildLabEnvironment() {
   const solidFloor = new THREE.Mesh(solidFloorGeo, solidFloorMat);
   solidFloor.rotation.x = -Math.PI / 2;
   solidFloor.position.y = -0.005;
-  envGroup.add(solidFloor);
+  scene.add(solidFloor);
 
   // 4. Tactile 3D Buttons on Tabletop (In front of chamber)
   const buttonsGroup = new THREE.Group();
@@ -246,6 +277,7 @@ function buildLabEnvironment() {
   sealBtn.userData = { action: 'toggleSeal', tooltip: 'Seal Chamber (Superposition)' };
   buttonsGroup.add(sealBtn);
   interactableObjects.push(sealBtn);
+  tableButtons.sealBtn = sealBtn;
 
   // Button B: Observe (Collapse Wavefunction)
   const observeMat = new THREE.MeshStandardMaterial({
@@ -261,6 +293,7 @@ function buildLabEnvironment() {
   observeBtn.userData = { action: 'observe', tooltip: 'Open & Observe (Collapse)' };
   buttonsGroup.add(observeBtn);
   interactableObjects.push(observeBtn);
+  tableButtons.observeBtn = observeBtn;
 
   // Button C: Reset Paradox
   const resetMat = new THREE.MeshStandardMaterial({
@@ -276,9 +309,11 @@ function buildLabEnvironment() {
   resetBtn.userData = { action: 'reset', tooltip: 'Reset Paradox' };
   buttonsGroup.add(resetBtn);
   interactableObjects.push(resetBtn);
+  tableButtons.resetBtn = resetBtn;
 
   envGroup.add(buttonsGroup);
-  scene.add(envGroup);
+  // Add table and buttons to modelRoot so they rotate and scale together
+  modelRoot.add(envGroup);
 }
 buildLabEnvironment();
 
@@ -345,7 +380,7 @@ async function initApparatus() {
     });
     apparatus.box.userData = { action: 'toggleSeal', tooltip: 'Chamber Lid' };
     interactableObjects.push(apparatus.box);
-    scene.add(apparatus.box);
+    modelRoot.add(apparatus.box);
 
     // 2. Cat (Right side of chamber, full headroom & breathing room)
     const catGltf = await loadModel('/models/Cat.glb');
@@ -368,7 +403,7 @@ async function initApparatus() {
     });
     apparatus.cat.userData = { action: 'inspectCat', tooltip: 'Quantum Cat' };
     interactableObjects.push(apparatus.cat);
-    scene.add(apparatus.cat);
+    modelRoot.add(apparatus.cat);
 
     // 3. Geiger Counter (Spaced to left of center, probe pointing toward atom)
     const geigerGltf = await loadModel('/models/Geiger_Counter.glb');
@@ -397,7 +432,7 @@ async function initApparatus() {
     }
     apparatus.geiger.userData = { action: 'testGeiger', tooltip: 'Geiger-Müller Radiation Detector' };
     interactableObjects.push(apparatus.geiger);
-    scene.add(apparatus.geiger);
+    modelRoot.add(apparatus.geiger);
 
     // 4. Hammer (Spaced between Geiger Counter and Cat)
     const hammerGltf = await loadModel('/models/Hammer.glb');
@@ -419,7 +454,7 @@ async function initApparatus() {
       }
       mixers.push(mixer);
     }
-    scene.add(apparatus.hammer);
+    modelRoot.add(apparatus.hammer);
 
     // 5. Poison Vial (Directly below hammer strike target)
     const vialGltf = await loadModel('/models/PoisionVial.glb');
@@ -437,7 +472,8 @@ async function initApparatus() {
       }
     });
     apparatus.vial.userData = { tooltip: 'Hydrocyanic Poison Vial' };
-    scene.add(apparatus.vial);
+    modelRoot.add(apparatus.vial);
+    modelRoot.add(poisonGlow);
 
     // 6. Radioactive Atom (Far left chamber, floating freely)
     const atomGltf = await loadModel('/models/RadioactiveAtom.glb');
@@ -456,7 +492,7 @@ async function initApparatus() {
     }
     apparatus.atom.userData = { action: 'inspectAtom', tooltip: 'Radioactive Atom (50% Decay Half-Life)' };
     interactableObjects.push(apparatus.atom);
-    scene.add(apparatus.atom);
+    modelRoot.add(apparatus.atom);
 
     updateUI();
   } catch (err) {
@@ -476,8 +512,8 @@ const spatialCtx = spatialCanvas.getContext('2d');
 const spatialTexture = new THREE.CanvasTexture(spatialCanvas);
 spatialTexture.colorSpace = THREE.SRGBColorSpace;
 
-// Cinematic Large-Format Holographic Plane Geometry (2.35m x 1.65m)
-const spatialPanelGeo = new THREE.PlaneGeometry(2.35, 1.65);
+// Cinematic Holographic Panel Geometry (Placed exact side to the box with clean distance, flat & untilted)
+const spatialPanelGeo = new THREE.PlaneGeometry(1.20, 0.84);
 const spatialPanelMat = new THREE.MeshBasicMaterial({
   map: spatialTexture,
   transparent: true,
@@ -485,14 +521,15 @@ const spatialPanelMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 });
 
-// Floating Holographic Screen: Positioned to the right of chamber, hovering in space
+// Floating Holographic Screen: Brought closer forward (Z: 0.45) and closer beside the box (X: 1.48)
 const spatialPanel = new THREE.Mesh(spatialPanelGeo, spatialPanelMat);
-spatialPanel.position.set(1.78, 1.62, 0.25);
-spatialPanel.rotation.set(0, -0.42, 0);
+// Box right wall ends at x = +0.82. Screen left edge is at x = 0.88 (6cm safe clearance, zero clipping)
+spatialPanel.position.set(1.48, 1.25, 0.45);
+spatialPanel.rotation.set(0, 0, 0);
 spatialPanel.name = 'Spatial_Orientation_Panel';
 
 // Glowing holographic cyan halo border
-const haloGeo = new THREE.PlaneGeometry(2.41, 1.71);
+const haloGeo = new THREE.PlaneGeometry(1.24, 0.88);
 const haloMat = new THREE.MeshBasicMaterial({
   color: 0x00f2fe,
   transparent: true,
@@ -500,10 +537,12 @@ const haloMat = new THREE.MeshBasicMaterial({
   side: THREE.DoubleSide,
 });
 const haloMesh = new THREE.Mesh(haloGeo, haloMat);
-haloMesh.position.z = -0.006;
+haloMesh.position.set(0, 0, -0.005);
+haloMesh.rotation.set(0, 0, 0);
 spatialPanel.add(haloMesh);
 
-scene.add(spatialPanel);
+// Add to modelRoot so the screen stays exact side to the box when rotated or zoomed
+modelRoot.add(spatialPanel);
 interactableObjects.push(spatialPanel);
 
 function renderSpatialOrientationPanel() {
@@ -600,13 +639,14 @@ function renderSpatialOrientationPanel() {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 44px "Outfit", sans-serif';
-  ctx.fillText('2. Hand Gestures & Orientation:', 85, 670);
+  ctx.fillText('2. Hand Gestures & Interactive Controls:', 85, 660);
 
   ctx.fillStyle = '#e2e8f0';
-  ctx.font = '400 33px "Outfit", sans-serif';
-  ctx.fillText('🤏 Pinch / Grab: Grip the chamber lid to Seal or Open the box', 115, 730);
-  ctx.fillText('👆 Index Poke: Tap the 3D buttons on the tabletop or on this panel', 115, 790);
-  ctx.fillText('👁️ Observer Effect: Opening the box forces instantaneous Wave Collapse', 115, 850);
+  ctx.font = '400 31px "Outfit", sans-serif';
+  ctx.fillText('🤏 Middle Finger + Thumb (Both hands): Zoom in / out entire model', 115, 715);
+  ctx.fillText('🤏 Middle Finger + Thumb (One hand): Rotate entire model', 115, 765);
+  ctx.fillText('🤏 Index Finger + Thumb: Grip chamber lid to Seal / Open', 115, 815);
+  ctx.fillText('👆 Index Poke: Tap 3D buttons on tabletop or panel', 115, 865);
 
   // Interactive Buttons on 3D Spatial Panel
   const btnY = 985;
@@ -645,7 +685,7 @@ function renderSpatialOrientationPanel() {
   ctx.fillStyle = '#94a3b8';
   ctx.font = '500 32px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('💡 Tip: In VR, pinch the chamber lid or press tabletop buttons with hands', w / 2, 1200);
+  ctx.fillText('💡 Tip: Pinch (Middle+Thumb) with 1 hand to rotate, or 2 hands to zoom in/out', w / 2, 1200);
 
   spatialTexture.needsUpdate = true;
 }
@@ -865,27 +905,180 @@ function checkHandPinch(hand, isLeft) {
 
 function onHandPinchTrigger(pos) {
   sounds.ensureContext();
-  // Check if hand is near the box lid handle (within 0.28m)
+  // Check if hand is near the box lid handle
   if (apparatus.box) {
     const boxPos = new THREE.Vector3();
     apparatus.box.getWorldPosition(boxPos);
-    boxPos.y += 0.45; // lid height
-    if (pos.distanceTo(boxPos) < 0.35) {
+    boxPos.y += 0.45 * modelRoot.scale.y;
+    if (pos.distanceTo(boxPos) < 0.38 * Math.max(modelRoot.scale.x, 0.4)) {
       toggleChamberSeal();
       return;
     }
   }
 
-  // Check if hand is near tabletop buttons (in front of chamber)
-  const btnOrigin = new THREE.Vector3(-0.4, 0.795, 0.82);
-  if (pos.distanceTo(btnOrigin) < 0.3) {
-    if (pos.x < -0.3) {
+  // Check if hand is near tabletop buttons
+  if (tableButtons.sealBtn && tableButtons.observeBtn && tableButtons.resetBtn) {
+    const sealPos = new THREE.Vector3();
+    const obsPos = new THREE.Vector3();
+    const rstPos = new THREE.Vector3();
+    tableButtons.sealBtn.getWorldPosition(sealPos);
+    tableButtons.observeBtn.getWorldPosition(obsPos);
+    tableButtons.resetBtn.getWorldPosition(rstPos);
+
+    const hitThreshold = 0.14 * Math.max(modelRoot.scale.x, 0.4);
+    if (pos.distanceTo(sealPos) < hitThreshold) {
       toggleChamberSeal();
-    } else if (pos.x > -0.1) {
-      resetExperiment();
-    } else {
-      observeChamber();
+      return;
     }
+    if (pos.distanceTo(obsPos) < hitThreshold) {
+      observeChamber();
+      return;
+    }
+    if (pos.distanceTo(rstPos) < hitThreshold) {
+      resetExperiment();
+      return;
+    }
+  }
+}
+
+// ==========================================
+// MIDDLE FINGER + THUMB GESTURE TRACKING
+// Two Hands: Zoom In / Zoom Out (Scale entire model)
+// One Hand: Rotate entire model (Turntable rotation)
+// ==========================================
+const middleGestureState = {
+  twoHandZoomActive: false,
+  initialHandDist: 0,
+  initialModelScale: 1.0,
+  oneHandRotateActive: false,
+  activeHandId: -1,
+  prevPinchPos: new THREE.Vector3(),
+};
+
+function getMiddlePinchData(hand) {
+  if (!hand || !hand.joints) return null;
+  const middleTip = hand.joints['middle-finger-tip'];
+  const thumbTip = hand.joints['thumb-tip'];
+  if (!middleTip || !thumbTip) return null;
+
+  const mPos = middleTip.position;
+  const tPos = thumbTip.position;
+  if (!isFinite(mPos.x) || !isFinite(tPos.x)) return null;
+
+  const dist = mPos.distanceTo(tPos);
+  const isPinching = dist < 0.035;
+  const pinchPos = new THREE.Vector3().addVectors(mPos, tPos).multiplyScalar(0.5);
+
+  return {
+    isPinching,
+    dist,
+    pinchPos,
+  };
+}
+
+function processMiddleFingerModelGestures() {
+  const pinch0 = getMiddlePinchData(hand0);
+  const pinch1 = getMiddlePinchData(hand1);
+
+  const isPinch0 = !!(pinch0 && pinch0.isPinching);
+  const isPinch1 = !!(pinch1 && pinch1.isPinching);
+
+  // Update visual markers at middle fingertips
+  if (pinch0) {
+    middleMarker0.visible = true;
+    middleMarker0.position.copy(pinch0.pinchPos);
+    if (isPinch0) {
+      middleMarker0.scale.setScalar(1.8);
+      middleMarker0.material.color.setHex(0x00f2fe);
+      middleMarker0.material.emissive.setHex(0x00f2fe);
+    } else {
+      middleMarker0.scale.setScalar(1.0);
+      middleMarker0.material.color.setHex(0xa855f7);
+      middleMarker0.material.emissive.setHex(0x7e22ce);
+    }
+  } else {
+    middleMarker0.visible = false;
+  }
+
+  if (pinch1) {
+    middleMarker1.visible = true;
+    middleMarker1.position.copy(pinch1.pinchPos);
+    if (isPinch1) {
+      middleMarker1.scale.setScalar(1.8);
+      middleMarker1.material.color.setHex(0x00f2fe);
+      middleMarker1.material.emissive.setHex(0x00f2fe);
+    } else {
+      middleMarker1.scale.setScalar(1.0);
+      middleMarker1.material.color.setHex(0xa855f7);
+      middleMarker1.material.emissive.setHex(0x7e22ce);
+    }
+  } else {
+    middleMarker1.visible = false;
+  }
+
+  // 1. BOTH HANDS PINCHING (MIDDLE + THUMB) -> ZOOM IN / ZOOM OUT
+  if (isPinch0 && isPinch1) {
+    middleGestureState.oneHandRotateActive = false;
+    const currentDist = pinch0.pinchPos.distanceTo(pinch1.pinchPos);
+
+    if (!middleGestureState.twoHandZoomActive) {
+      middleGestureState.twoHandZoomActive = true;
+      middleGestureState.initialHandDist = currentDist;
+      middleGestureState.initialModelScale = modelRoot.scale.x;
+    } else if (middleGestureState.initialHandDist > 0.01) {
+      const scaleRatio = currentDist / middleGestureState.initialHandDist;
+      const targetScale = THREE.MathUtils.clamp(
+        middleGestureState.initialModelScale * scaleRatio,
+        0.35,
+        2.8
+      );
+      modelRoot.scale.setScalar(targetScale);
+    }
+  }
+  // 2. ONE HAND PINCHING (MIDDLE + THUMB) -> ROTATE ENTIRE MODEL
+  else if (isPinch0 || isPinch1) {
+    middleGestureState.twoHandZoomActive = false;
+    const activePinch = isPinch0 ? pinch0 : pinch1;
+    const activeHandId = isPinch0 ? 0 : 1;
+
+    if (!middleGestureState.oneHandRotateActive || middleGestureState.activeHandId !== activeHandId) {
+      middleGestureState.oneHandRotateActive = true;
+      middleGestureState.activeHandId = activeHandId;
+      middleGestureState.prevPinchPos.copy(activePinch.pinchPos);
+    } else {
+      // Model center in world space
+      const modelCenter = new THREE.Vector3();
+      modelRoot.getWorldPosition(modelCenter);
+
+      // Angle of hand around model center in X-Z horizontal plane
+      const prevAngle = Math.atan2(
+        middleGestureState.prevPinchPos.x - modelCenter.x,
+        middleGestureState.prevPinchPos.z - modelCenter.z
+      );
+      const currAngle = Math.atan2(
+        activePinch.pinchPos.x - modelCenter.x,
+        activePinch.pinchPos.z - modelCenter.z
+      );
+
+      let deltaAngle = currAngle - prevAngle;
+      while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+      while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+
+      // Linear horizontal drag delta
+      const deltaX = activePinch.pinchPos.x - middleGestureState.prevPinchPos.x;
+
+      // Apply turntable rotation around Y axis
+      const rotationStep = deltaAngle + deltaX * 1.6;
+      modelRoot.rotation.y += rotationStep;
+
+      middleGestureState.prevPinchPos.copy(activePinch.pinchPos);
+    }
+  }
+  // 3. NEITHER HAND PINCHING
+  else {
+    middleGestureState.twoHandZoomActive = false;
+    middleGestureState.oneHandRotateActive = false;
+    middleGestureState.activeHandId = -1;
   }
 }
 
@@ -930,15 +1123,18 @@ renderer.setAnimationLoop(() => {
     apparatus.atom.rotation.y += delta * 0.4;
   }
 
-  // Floating Anti-Gravity Holographic Screen Hover Animation
+  // Holographic Screen: strictly untilted and parallel to the chamber
   if (spatialPanel) {
-    spatialPanel.position.y = 1.48 + Math.sin(appState.time * 1.5) * 0.025;
-    spatialPanel.rotation.z = Math.sin(appState.time * 1.1) * 0.007;
+    spatialPanel.rotation.set(0, 0, 0);
   }
 
-  // 5. Hand Pinch Checks
+  // 5. Hand Gestures:
+  // Index Finger + Thumb for Chamber Lid & Table Buttons
   checkHandPinch(hand0, true);
   checkHandPinch(hand1, false);
+
+  // Middle Finger + Thumb for Zoom (2 Hands) and Rotate (1 Hand)
+  processMiddleFingerModelGestures();
 
   // 6. Ambient Random Geiger Clicks (Background Radiation)
   if (appState.time - appState.lastGeigerClick > 2.8 + Math.random() * 3.0) {
