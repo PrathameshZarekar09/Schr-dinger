@@ -20,6 +20,7 @@ const appState = {
   isBoxSealed: false,
   quantumPeek: false,
   outcome: null, // 'alive' | 'dead'
+  catCollapseT: 0.0, // 0.0 = upright alive, 1.0 = collapsed dead on chamber floor
   decayProbability: 0.5,
   isPinchingLeft: false,
   isPinchingRight: false,
@@ -320,7 +321,47 @@ buildLabEnvironment();
 // ==========================================
 // 3D MODELS LOADING & CACHING
 // ==========================================
-const gltfLoader = new GLTFLoader();
+// Cat Posture Poses (Inside Chamber)
+// Upright healthy cat on feet
+const CAT_ALIVE_POS = new THREE.Vector3(0.32, 0.84, 0.15);
+const CAT_ALIVE_ROT = new THREE.Euler(0, -0.55, 0, 'XYZ');
+const CAT_ALIVE_QUAT = new THREE.Quaternion().setFromEuler(CAT_ALIVE_ROT);
+
+// Dead cat collapsed on its side resting on chamber floor
+const CAT_DEAD_POS = new THREE.Vector3(0.24, 1.02, 0.02);
+const CAT_DEAD_ROT = new THREE.Euler(0.12, -0.60, -1.46, 'XYZ');
+const CAT_DEAD_QUAT = new THREE.Quaternion().setFromEuler(CAT_DEAD_ROT);
+
+function createDeadEyeCross(x, y, z) {
+  const crossGroup = new THREE.Group();
+  crossGroup.position.set(x, y, z);
+  const armMat = new THREE.MeshStandardMaterial({
+    color: 0xef4444, // Quantum red / crimson X marker
+    emissive: 0xdc2626,
+    emissiveIntensity: 0.8,
+    roughness: 0.25,
+  });
+  const barGeo = new THREE.BoxGeometry(0.016, 0.075, 0.014);
+  const bar1 = new THREE.Mesh(barGeo, armMat);
+  bar1.rotation.z = Math.PI / 4;
+  const bar2 = new THREE.Mesh(barGeo, armMat);
+  bar2.rotation.z = -Math.PI / 4;
+  crossGroup.add(bar1);
+  crossGroup.add(bar2);
+  return crossGroup;
+}
+
+const deadEyeMat = new THREE.MeshStandardMaterial({
+  color: 0x334155, // Dull lifeless slate grey
+  roughness: 0.85,
+  metalness: 0.05,
+});
+
+const deadPupilMat = new THREE.MeshStandardMaterial({
+  color: 0x1e293b,
+  roughness: 0.9,
+});
+
 const apparatus = {
   box: null,
   boxLid: null,
@@ -330,6 +371,9 @@ const apparatus = {
   catChest: null,
   catTail: [],
   catEyes: [],
+  catPupils: [],
+  catEyeHighlights: [],
+  deadEyes: null,
   geiger: null,
   geigerNeedle: null,
   geigerRedLight: null,
@@ -341,10 +385,28 @@ const apparatus = {
   atom: null,
 };
 
+function setCatDeadVisuals(isDead) {
+  if (apparatus.deadEyes) {
+    apparatus.deadEyes.visible = isDead;
+  }
+  apparatus.catEyeHighlights.forEach((h) => {
+    h.visible = !isDead;
+  });
+  apparatus.catEyes.forEach((eye) => {
+    if (!eye.userData.origMat) eye.userData.origMat = eye.material;
+    eye.material = isDead ? deadEyeMat : eye.userData.origMat;
+  });
+  apparatus.catPupils.forEach((pupil) => {
+    if (!pupil.userData.origMat) pupil.userData.origMat = pupil.material;
+    pupil.material = isDead ? deadPupilMat : pupil.userData.origMat;
+  });
+}
+
 const mixers = [];
 let atomActions = [];
 let hammerAction = null;
 let geigerRedAction = null;
+const gltfLoader = new GLTFLoader();
 
 async function loadModel(url) {
   return new Promise((resolve, reject) => {
@@ -385,8 +447,8 @@ async function initApparatus() {
     // 2. Cat (Right side of chamber, full headroom & breathing room)
     const catGltf = await loadModel('/models/Cat.glb');
     apparatus.cat = catGltf.scene;
-    apparatus.cat.position.set(0.32, 0.84, 0.15);
-    apparatus.cat.rotation.y = -0.55;
+    apparatus.cat.position.copy(CAT_ALIVE_POS);
+    apparatus.cat.quaternion.copy(CAT_ALIVE_QUAT);
     apparatus.cat.scale.set(0.46, 0.46, 0.46);
     apparatus.cat.traverse((child) => {
       if (child.isMesh) {
@@ -397,10 +459,26 @@ async function initApparatus() {
       if (child.name && child.name.startsWith('Cat_Tail_Segment')) {
         apparatus.catTail.push(child);
       }
-      if (child.name && child.name.includes('Eye')) {
+      if (child.name === 'Cat_Eye_L' || child.name === 'Cat_Eye_R') {
         apparatus.catEyes.push(child);
       }
+      if (child.name === 'Cat_Pupil_L' || child.name === 'Cat_Pupil_R') {
+        apparatus.catPupils.push(child);
+      }
+      if (child.name && child.name.includes('Eye_Highlight')) {
+        apparatus.catEyeHighlights.push(child);
+      }
     });
+
+    // Create stylized "X_X" cross markers for the dead collapsed cat
+    const deadEyesGroup = new THREE.Group();
+    deadEyesGroup.name = 'Dead_Eyes_Group';
+    deadEyesGroup.add(createDeadEyeCross(-0.145, 1.39, 0.85));
+    deadEyesGroup.add(createDeadEyeCross(0.145, 1.39, 0.85));
+    deadEyesGroup.visible = false;
+    apparatus.cat.add(deadEyesGroup);
+    apparatus.deadEyes = deadEyesGroup;
+
     apparatus.cat.userData = { action: 'inspectCat', tooltip: 'Quantum Cat' };
     interactableObjects.push(apparatus.cat);
     modelRoot.add(apparatus.cat);
@@ -755,9 +833,12 @@ function observeChamber() {
     }, 480);
 
     setTimeout(() => {
+      // Trigger Cat Physical Collapse onto chamber floor
+      sounds.playCatCollapse();
+      setCatDeadVisuals(true);
       if (apparatus.catHead) {
-        apparatus.catHead.rotation.z = 0.42;
         apparatus.catHead.rotation.x = -0.32;
+        apparatus.catHead.rotation.z = 0.28;
       }
     }, 620);
   } else {
@@ -765,6 +846,7 @@ function observeChamber() {
     sounds.playCatMeow();
     if (geigerRedAction) geigerRedAction.stop();
     if (apparatus.geigerNeedle) apparatus.geigerNeedle.rotation.z = 0.05;
+    setCatDeadVisuals(false);
     if (apparatus.catHead) {
       apparatus.catHead.rotation.z = 0.0;
       apparatus.catHead.rotation.x = 0.0;
@@ -814,6 +896,13 @@ function resetApparatusVisuals() {
   apparatus.brokenVial.forEach((n) => (n.visible = false));
   poisonGlow.intensity = 0.2;
 
+  setCatDeadVisuals(false);
+  appState.catCollapseT = 0.0;
+
+  if (apparatus.cat) {
+    apparatus.cat.position.copy(CAT_ALIVE_POS);
+    apparatus.cat.quaternion.copy(CAT_ALIVE_QUAT);
+  }
   if (apparatus.catHead) {
     apparatus.catHead.rotation.z = 0.0;
     apparatus.catHead.rotation.x = 0.0;
@@ -850,7 +939,13 @@ function handleObjectInteraction(hit) {
       if (act === 'observe') observeChamber();
       if (act === 'reset') resetExperiment();
       if (act === 'testGeiger') sounds.playGeigerClick(0.4);
-      if (act === 'inspectCat') sounds.playCatMeow();
+      if (act === 'inspectCat') {
+        if (appState.outcome === 'dead') {
+          sounds.playCatCollapse();
+        } else {
+          sounds.playCatMeow();
+        }
+      }
       return;
     }
 
@@ -1104,17 +1199,38 @@ renderer.setAnimationLoop(() => {
     apparatus.boxLid.rotation.x += (targetAngle - apparatus.boxLid.rotation.x) * delta * 5.5;
   }
 
-  // 3. Cat Procedural Life / Breathing
-  if (apparatus.catChest && appState.outcome !== 'dead') {
-    const breath = Math.sin(appState.time * 2.6) * 0.02;
-    apparatus.catChest.scale.set(1 + breath, 1 + breath, 1 + breath);
-  }
+  // 3. Cat Procedural Life / Breathing & Collapse Dynamics
+  const targetCollapseT = appState.outcome === 'dead' ? 1.0 : 0.0;
+  const collapseSpeed = targetCollapseT > appState.catCollapseT ? 3.8 : 4.5;
+  appState.catCollapseT += (targetCollapseT - appState.catCollapseT) * Math.min(delta * collapseSpeed, 1.0);
 
-  if (apparatus.catTail.length > 0 && appState.outcome !== 'dead') {
-    const sway = Math.sin(appState.time * 2.2) * 0.12;
-    apparatus.catTail.forEach((seg, i) => {
-      seg.rotation.y = sway * (i + 1) * 0.4;
-    });
+  if (apparatus.cat) {
+    const t = appState.catCollapseT;
+    const easeT = THREE.MathUtils.smoothstep(t, 0, 1);
+
+    // Smooth physics-like fall onto chamber floor
+    apparatus.cat.position.lerpVectors(CAT_ALIVE_POS, CAT_DEAD_POS, easeT);
+    apparatus.cat.quaternion.slerpQuaternions(CAT_ALIVE_QUAT, CAT_DEAD_QUAT, easeT);
+
+    // Procedural Breathing & Tail Wag (Active when alive, dampens to 0 as cat collapses)
+    const aliveWeight = Math.max(0, 1.0 - t * 1.5);
+    if (apparatus.catChest && aliveWeight > 0.001) {
+      const breath = Math.sin(appState.time * 2.6) * 0.02 * aliveWeight;
+      apparatus.catChest.scale.set(1 + breath, 1 + breath, 1 + breath);
+    } else if (apparatus.catChest) {
+      apparatus.catChest.scale.set(1, 1, 1);
+    }
+
+    if (apparatus.catTail.length > 0 && aliveWeight > 0.001) {
+      const sway = Math.sin(appState.time * 2.2) * 0.12 * aliveWeight;
+      apparatus.catTail.forEach((seg, i) => {
+        seg.rotation.y = sway * (i + 1) * 0.4;
+      });
+    } else if (apparatus.catTail.length > 0) {
+      apparatus.catTail.forEach((seg) => {
+        seg.rotation.y = 0;
+      });
+    }
   }
 
   // 4. Quantum Superposition Floating Atom bobbing

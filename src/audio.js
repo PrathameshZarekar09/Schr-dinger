@@ -155,6 +155,51 @@ class SoundManager {
     osc.stop(now + 0.52);
   }
 
+  /** Soft muffled body thud on chamber floor when cat collapses */
+  playCatCollapse() {
+    this.ensureContext();
+    if (!this.ctx || this.isMuted) return;
+
+    const now = this.ctx.currentTime;
+
+    // Low body impact thud
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(115, now);
+    osc.frequency.exponentialRampToValueAtTime(36, now + 0.22);
+
+    gain.gain.setValueAtTime(0.55, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+
+    // Muffled surface contact noise
+    const bufferSize = this.ctx.sampleRate * 0.08;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.3));
+    }
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = buffer;
+    const noiseFilter = this.ctx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 350;
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.4, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    noiseSource.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+
+    osc.start(now);
+    noiseSource.start(now);
+    osc.stop(now + 0.25);
+  }
+
+
   /** Continuous low-frequency quantum superposition resonance hum */
   startQuantumHum() {
     this.ensureContext();

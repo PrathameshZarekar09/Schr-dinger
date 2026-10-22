@@ -106,13 +106,18 @@ export class SchrodingerSystem extends createSystem({
   setupCat(entity) {
     const obj = entity.object3D;
     if (!obj) return;
+    this.catObj = obj;
 
     this.catTailNodes = [];
+    this.catEyeHighlights = [];
     obj.traverse((child) => {
       if (child.name === 'Cat_Head') this.catHeadNode = child;
       if (child.name === 'Cat_Chest') this.catChestNode = child;
       if (child.name && child.name.startsWith('Cat_Tail_Segment')) {
         this.catTailNodes.push(child);
+      }
+      if (child.name && child.name.includes('Eye_Highlight')) {
+        this.catEyeHighlights.push(child);
       }
     });
   }
@@ -276,12 +281,18 @@ export class SchrodingerSystem extends createSystem({
       this.brokenVialNodes.forEach((n) => (n.visible = true));
     }, 450);
 
-    // 4. Cat collapses
+    // 4. Cat collapses onto chamber floor
     setTimeout(() => {
-      if (this.catHeadNode) {
-        this.catHeadNode.rotation.z = 0.4;
-        this.catHeadNode.rotation.x = -0.3;
+      sounds.playCatCollapse();
+      if (this.catObj) {
+        this.catObj.position.set(0.24, 1.02, 0.02);
+        this.catObj.rotation.set(0.12, -0.60, -1.46);
       }
+      if (this.catHeadNode) {
+        this.catHeadNode.rotation.x = -0.32;
+        this.catHeadNode.rotation.z = 0.28;
+      }
+      this.catEyeHighlights.forEach((h) => (h.visible = false));
     }, 600);
   }
 
@@ -297,11 +308,16 @@ export class SchrodingerSystem extends createSystem({
       this.geigerNeedleNode.rotation.z = 0.05;
     }
 
-    // Cat perks up
+    // Cat stays upright & healthy
+    if (this.catObj) {
+      this.catObj.position.set(0.32, 0.84, 0.15);
+      this.catObj.rotation.set(0, -0.55, 0);
+    }
     if (this.catHeadNode) {
       this.catHeadNode.rotation.z = 0.0;
       this.catHeadNode.rotation.x = 0.0;
     }
+    this.catEyeHighlights.forEach((h) => (h.visible = true));
 
     // Vial stays intact
     this.intactVialNodes.forEach((n) => (n.visible = true));
@@ -316,10 +332,15 @@ export class SchrodingerSystem extends createSystem({
     this.intactVialNodes.forEach((n) => (n.visible = true));
     this.brokenVialNodes.forEach((n) => (n.visible = false));
 
+    if (this.catObj) {
+      this.catObj.position.set(0.32, 0.84, 0.15);
+      this.catObj.rotation.set(0, -0.55, 0);
+    }
     if (this.catHeadNode) {
       this.catHeadNode.rotation.z = 0.0;
       this.catHeadNode.rotation.x = 0.0;
     }
+    this.catEyeHighlights.forEach((h) => (h.visible = true));
   }
 
   update(delta) {
