@@ -277,35 +277,56 @@ function buildLabEnvironment() {
   pedestal.position.set(0, 0.014, 0);
   buttonsGroup.add(pedestal);
 
-  // Glowing cyan trim around console pedestal
-  const pedTrimGeo = new THREE.BoxGeometry(0.83, 0.008, 0.27);
-  const pedTrimMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.75 });
+  // Glowing cyan trim around console pedestal base (lowered to base level to prevent any coplanar overlap)
+  const pedTrimGeo = new THREE.BoxGeometry(0.835, 0.006, 0.275);
+  const pedTrimMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.85 });
   const pedTrim = new THREE.Mesh(pedTrimGeo, pedTrimMat);
-  pedTrim.position.set(0, 0.025, 0);
+  pedTrim.position.set(0, 0.003, 0);
   buttonsGroup.add(pedTrim);
 
-  // Console Title Plate
+  // Raised & Angled Console Title Badge (Tilted toward viewer for zero Z-fighting & crisp legibility)
+  const badgeHolderGeo = new THREE.BoxGeometry(0.50, 0.008, 0.072);
+  const badgeHolderMat = new THREE.MeshStandardMaterial({
+    color: 0x080e1a,
+    metalness: 0.9,
+    roughness: 0.2,
+  });
+  const badgeHolder = new THREE.Mesh(badgeHolderGeo, badgeHolderMat);
+  badgeHolder.position.set(0, 0.034, -0.078);
+  badgeHolder.rotation.x = -0.35; // Angled 20° toward user
+  buttonsGroup.add(badgeHolder);
+
   const plateCanvas = document.createElement('canvas');
   plateCanvas.width = 512;
-  plateCanvas.height = 64;
+  plateCanvas.height = 80;
   const plateCtx = plateCanvas.getContext('2d');
-  plateCtx.fillStyle = '#080e1a';
-  plateCtx.fillRect(0, 0, 512, 64);
-  plateCtx.strokeStyle = '#38bdf8';
-  plateCtx.lineWidth = 4;
-  plateCtx.strokeRect(4, 4, 504, 56);
-  plateCtx.fillStyle = '#38bdf8';
-  plateCtx.font = 'bold 26px "Outfit", sans-serif';
+  plateCtx.fillStyle = '#060a14';
+  plateCtx.fillRect(0, 0, 512, 80);
+  plateCtx.strokeStyle = '#00f2fe';
+  plateCtx.lineWidth = 5;
+  plateCtx.strokeRect(4, 4, 504, 72);
+  plateCtx.fillStyle = '#00f2fe';
+  plateCtx.font = 'bold 30px "Outfit", system-ui, sans-serif';
   plateCtx.textAlign = 'center';
-  plateCtx.fillText('⚛ QUANTUM EXPERIMENT CONTROLS', 256, 42);
+  plateCtx.textBaseline = 'middle';
+  plateCtx.shadowColor = 'rgba(0, 242, 254, 0.6)';
+  plateCtx.shadowBlur = 8;
+  plateCtx.fillText('⚛ QUANTUM EXPERIMENT CONTROLS', 256, 40);
+
   const plateTex = new THREE.CanvasTexture(plateCanvas);
   plateTex.colorSpace = THREE.SRGBColorSpace;
-  const plateGeo = new THREE.PlaneGeometry(0.44, 0.055);
-  const plateMat = new THREE.MeshBasicMaterial({ map: plateTex, transparent: true });
-  const plate = new THREE.Mesh(plateGeo, plateMat);
+  const plateMat = new THREE.MeshBasicMaterial({
+    map: plateTex,
+    transparent: false,
+    toneMapped: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
+  });
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.49, 0.070), plateMat);
   plate.rotation.x = -Math.PI / 2;
-  plate.position.set(0, 0.029, -0.08);
-  buttonsGroup.add(plate);
+  plate.position.set(0, 0.005, 0); // Positioned safely above badge holder face
+  badgeHolder.add(plate);
 
   const btnGeo = new THREE.CylinderGeometry(0.048, 0.054, 0.030, 24);
 
@@ -341,10 +362,13 @@ function buildLabEnvironment() {
       map: tex,
       transparent: true,
       toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3,
     });
     const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.045, 24), mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.0155;
+    mesh.position.y = 0.0158;
     return mesh;
   }
 
