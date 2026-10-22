@@ -187,27 +187,27 @@ const interactableObjects = [];
 function buildLabEnvironment() {
   const envGroup = new THREE.Group();
 
-  // 1. Sleek Heavy Laboratory Table (Wider for scaled box and separated side panel)
-  const tableTopGeo = new THREE.BoxGeometry(4.0, 0.06, 1.95);
+  // 1. Sleek Heavy Laboratory Table (Extended forward so buttons are clearly separated & fully visible)
+  const tableTopGeo = new THREE.BoxGeometry(4.0, 0.06, 2.70);
   const tableTopMat = new THREE.MeshStandardMaterial({
     color: 0x161e2e,
     metalness: 0.85,
     roughness: 0.22,
   });
   const tableTop = new THREE.Mesh(tableTopGeo, tableTopMat);
-  tableTop.position.set(0.25, 0.76, 0.05);
+  tableTop.position.set(0.25, 0.76, 0.425);
   tableTop.receiveShadow = true;
   envGroup.add(tableTop);
 
   // Table Edge Glow (Cyan Neon Strip)
-  const edgeGeo = new THREE.BoxGeometry(4.02, 0.014, 1.97);
+  const edgeGeo = new THREE.BoxGeometry(4.02, 0.014, 2.72);
   const edgeMat = new THREE.MeshBasicMaterial({
     color: 0x00f2fe,
     transparent: true,
     opacity: 0.8,
   });
   const edge = new THREE.Mesh(edgeGeo, edgeMat);
-  edge.position.set(0.25, 0.79, 0.05);
+  edge.position.set(0.25, 0.79, 0.425);
   envGroup.add(edge);
 
   // 4 Table Legs
@@ -220,8 +220,8 @@ function buildLabEnvironment() {
   const legPositions = [
     [-1.65, 0.38, -0.85],
     [2.15, 0.38, -0.85],
-    [-1.65, 0.38, 0.85],
-    [2.15, 0.38, 0.85],
+    [-1.65, 0.38, 1.62],
+    [2.15, 0.38, 1.62],
   ];
   legPositions.forEach(([x, y, z]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
@@ -235,6 +235,10 @@ function buildLabEnvironment() {
   const brace = new THREE.Mesh(braceGeo, legMat);
   brace.position.set(0.25, 0.2, -0.85);
   envGroup.add(brace);
+
+  const braceFront = new THREE.Mesh(braceGeo, legMat);
+  braceFront.position.set(0.25, 0.2, 1.62);
+  envGroup.add(braceFront);
 
   // 2. Quantum Grid Floor (Fixed in world room)
   const floorGeo = new THREE.PlaneGeometry(24, 24, 32, 32);
@@ -258,11 +262,52 @@ function buildLabEnvironment() {
   solidFloor.position.y = -0.005;
   scene.add(solidFloor);
 
-  // 4. Tactile 3D Buttons on Tabletop (In front of chamber)
+  // 4. Tactile 3D Buttons on Tabletop (Raised Control Pedestal in front of chamber, zero overlap)
   const buttonsGroup = new THREE.Group();
-  buttonsGroup.position.set(-0.4, 0.795, 0.82);
+  buttonsGroup.position.set(-0.4, 0.792, 1.20);
 
-  const btnGeo = new THREE.CylinderGeometry(0.046, 0.052, 0.026, 24);
+  // Sleek beveled control console pedestal underneath the 3 buttons
+  const pedestalGeo = new THREE.BoxGeometry(0.82, 0.028, 0.26);
+  const pedestalMat = new THREE.MeshStandardMaterial({
+    color: 0x0f172a,
+    metalness: 0.85,
+    roughness: 0.25,
+  });
+  const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
+  pedestal.position.set(0, 0.014, 0);
+  buttonsGroup.add(pedestal);
+
+  // Glowing cyan trim around console pedestal
+  const pedTrimGeo = new THREE.BoxGeometry(0.83, 0.008, 0.27);
+  const pedTrimMat = new THREE.MeshBasicMaterial({ color: 0x00f2fe, transparent: true, opacity: 0.75 });
+  const pedTrim = new THREE.Mesh(pedTrimGeo, pedTrimMat);
+  pedTrim.position.set(0, 0.025, 0);
+  buttonsGroup.add(pedTrim);
+
+  // Console Title Plate
+  const plateCanvas = document.createElement('canvas');
+  plateCanvas.width = 512;
+  plateCanvas.height = 64;
+  const plateCtx = plateCanvas.getContext('2d');
+  plateCtx.fillStyle = '#080e1a';
+  plateCtx.fillRect(0, 0, 512, 64);
+  plateCtx.strokeStyle = '#38bdf8';
+  plateCtx.lineWidth = 4;
+  plateCtx.strokeRect(4, 4, 504, 56);
+  plateCtx.fillStyle = '#38bdf8';
+  plateCtx.font = 'bold 26px "Outfit", sans-serif';
+  plateCtx.textAlign = 'center';
+  plateCtx.fillText('⚛ QUANTUM EXPERIMENT CONTROLS', 256, 42);
+  const plateTex = new THREE.CanvasTexture(plateCanvas);
+  plateTex.colorSpace = THREE.SRGBColorSpace;
+  const plateGeo = new THREE.PlaneGeometry(0.44, 0.055);
+  const plateMat = new THREE.MeshBasicMaterial({ map: plateTex, transparent: true });
+  const plate = new THREE.Mesh(plateGeo, plateMat);
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(0, 0.029, -0.08);
+  buttonsGroup.add(plate);
+
+  const btnGeo = new THREE.CylinderGeometry(0.048, 0.054, 0.030, 24);
 
   // Helper to create circular glowing labels for tabletop tactile buttons
   function createTabletopBtnLabel(text, bgColor, strokeColor) {
@@ -299,7 +344,7 @@ function buildLabEnvironment() {
     });
     const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.045, 24), mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.y = 0.0135;
+    mesh.position.y = 0.0155;
     return mesh;
   }
 
@@ -312,7 +357,7 @@ function buildLabEnvironment() {
     roughness: 0.3,
   });
   const sealBtn = new THREE.Mesh(btnGeo, sealMat);
-  sealBtn.position.set(-0.20, 0, 0);
+  sealBtn.position.set(-0.25, 0.042, 0.035);
   sealBtn.name = 'Btn_Seal';
   sealBtn.userData = { action: 'toggleSeal', tooltip: 'Seal Chamber (Superposition)' };
   sealBtn.add(createTabletopBtnLabel('SEAL', '#d97706', '#fde047'));
@@ -329,7 +374,7 @@ function buildLabEnvironment() {
     roughness: 0.3,
   });
   const observeBtn = new THREE.Mesh(btnGeo, observeMat);
-  observeBtn.position.set(0, 0, 0);
+  observeBtn.position.set(0, 0.042, 0.035);
   observeBtn.name = 'Btn_Observe';
   observeBtn.userData = { action: 'observe', tooltip: 'Open & Observe (Collapse)' };
   observeBtn.add(createTabletopBtnLabel('OBSERVE', '#0284c7', '#38bdf8'));
@@ -346,7 +391,7 @@ function buildLabEnvironment() {
     roughness: 0.3,
   });
   const resetBtn = new THREE.Mesh(btnGeo, resetMat);
-  resetBtn.position.set(0.20, 0, 0);
+  resetBtn.position.set(0.25, 0.042, 0.035);
   resetBtn.name = 'Btn_Reset';
   resetBtn.userData = { action: 'reset', tooltip: 'Reset Paradox' };
   resetBtn.add(createTabletopBtnLabel('RESET', '#7e22ce', '#c084fc'));
@@ -356,9 +401,9 @@ function buildLabEnvironment() {
 
   envGroup.add(buttonsGroup);
 
-  // 5. Tactile Workbench Grab Bar (Allows grabbing, moving & placing entire model)
+  // 5. Tactile Workbench Grab Bar (At the extended front edge of the table)
   const grabBarGroup = new THREE.Group();
-  grabBarGroup.position.set(0.25, 0.79, 1.01);
+  grabBarGroup.position.set(0.25, 0.79, 1.72);
 
   const grabRailGeo = new THREE.CylinderGeometry(0.018, 0.018, 1.25, 24);
   grabRailGeo.rotateZ(Math.PI / 2);
@@ -1357,7 +1402,7 @@ function onHandPinchTrigger(pos) {
 
   // Check if hand is near the Workbench Grab Bar handle
   const grabPos = new THREE.Vector3();
-  modelRoot.localToWorld(grabPos.set(0.25, 0.79, 1.01));
+  modelRoot.localToWorld(grabPos.set(0.25, 0.79, 1.72));
   if (pos.distanceTo(grabPos) < 0.38 * Math.max(modelRoot.scale.x, 0.4)) {
     middleGestureState.oneHandActive = true;
     middleGestureState.activeHandId = 0;
@@ -1694,11 +1739,12 @@ function checkIndexFingerPoke(hand) {
       const btnPos = new THREE.Vector3();
       btn.getWorldPosition(btnPos);
       const hitDist = tipPos.distanceTo(btnPos);
-      if (hitDist < 0.08 * Math.max(modelRoot.scale.x, 0.35)) {
+      if (hitDist < 0.10 * Math.max(modelRoot.scale.x, 0.35)) {
         lastPokeTime = now;
-        btn.position.y = -0.005; // Visual press in
+        const initialY = btn.position.y;
+        btn.position.y -= 0.008; // Visual press in
         setTimeout(() => {
-          btn.position.y = 0.0;
+          btn.position.y = initialY;
         }, 160);
         sounds.playUiClick();
         if (btn.userData.action === 'toggleSeal') toggleChamberSeal();
