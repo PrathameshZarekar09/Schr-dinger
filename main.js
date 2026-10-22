@@ -510,6 +510,9 @@ const deadPupilMat = new THREE.MeshStandardMaterial({
 const apparatus = {
   box: null,
   boxLid: null,
+  frontDoor: null,
+  frontDoorMat: null,
+  frontDoorStatusLed: null,
   glassWindow: null,
   cat: null,
   catHead: null,
@@ -561,12 +564,16 @@ async function loadModel(url) {
 
 async function initApparatus() {
   try {
-    // 1. Box
     // 1. Box (Scaled up to 1.22 for spacious chamber)
     const boxGltf = await loadModel('/models/Box.glb');
     apparatus.box = boxGltf.scene;
     apparatus.box.position.set(-0.4, 0.79, 0.05);
     apparatus.box.scale.set(1.22, 1.22, 1.22);
+
+    let frontWindowMesh = null;
+    let latchPlateMesh = null;
+    let latchLockMesh = null;
+
     apparatus.box.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true;
@@ -574,18 +581,117 @@ async function initApparatus() {
       }
       if (child.name === 'Lid_Hinged') {
         apparatus.boxLid = child;
-        child.rotation.x = -1.9; // Initially open
+        child.rotation.x = 0.0; // Permanently closed & flat roof!
       }
-      if (child.name === 'Front_Glass_Window' && child.material) {
-        apparatus.glassWindow = child;
-        child.material = child.material.clone();
-        child.material.transparent = true;
-        child.material.opacity = 0.45;
-        child.material.roughness = 0.08;
-        child.material.transmission = 0.85;
+      if (child.name === 'Front_Glass_Window') {
+        frontWindowMesh = child;
+      }
+      if (child.name === 'Front_Latch_Plate') {
+        latchPlateMesh = child;
+      }
+      if (child.name === 'Front_Latch_Lock') {
+        latchLockMesh = child;
       }
     });
-    apparatus.box.userData = { action: 'toggleSeal', tooltip: 'Chamber Lid' };
+
+    // Create an Opaque Heavy Walnut Front Door Assembly (Opens from frontside)
+    const frontDoorPivot = new THREE.Group();
+    // Hinge at the left post of the box (x = -0.90, y = 0.66, z = 0.722)
+    frontDoorPivot.position.set(-0.90, 0.66, 0.722);
+    frontDoorPivot.rotation.y = -2.0; // Initially swung wide open to the left!
+    apparatus.frontDoor = frontDoorPivot;
+
+    // Completely opaque solid walnut door material
+    const doorMat = new THREE.MeshStandardMaterial({
+      color: 0x3d2716, // Solid Walnut Wood matching box frame
+      roughness: 0.38,
+      metalness: 0.15,
+      transparent: false,
+      opacity: 1.0,
+    });
+    apparatus.frontDoorMat = doorMat;
+
+    if (frontWindowMesh) {
+      frontWindowMesh.material = doorMat;
+      frontWindowMesh.position.set(0.90, 0, 0); // Offset from hinge pivot
+      frontDoorPivot.add(frontWindowMesh);
+      apparatus.glassWindow = frontWindowMesh;
+    }
+
+    if (latchPlateMesh) {
+      latchPlateMesh.position.set(0.90, 1.185 - 0.66, 0.775 - 0.722);
+      frontDoorPivot.add(latchPlateMesh);
+    }
+    if (latchLockMesh) {
+      latchLockMesh.position.set(0.90, 1.11 - 0.66, 0.797 - 0.722);
+      frontDoorPivot.add(latchLockMesh);
+    }
+
+    // Heavy Industrial Brass Handle on the front door
+    const handleGroup = new THREE.Group();
+    handleGroup.position.set(1.72, 0.0, 0.04);
+
+    const handleBarGeo = new THREE.CylinderGeometry(0.016, 0.016, 0.32, 20);
+    const handleMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37, // Polished brass / gold
+      metalness: 0.85,
+      roughness: 0.2,
+    });
+    const handleBar = new THREE.Mesh(handleBarGeo, handleMat);
+    handleGroup.add(handleBar);
+
+    // Standoff mounts
+    const mountGeo = new THREE.CylinderGeometry(0.014, 0.014, 0.045, 16);
+    mountGeo.rotateX(Math.PI / 2);
+    const m1 = new THREE.Mesh(mountGeo, handleMat);
+    m1.position.set(0, 0.12, -0.022);
+    const m2 = new THREE.Mesh(mountGeo, handleMat);
+    m2.position.set(0, -0.12, -0.022);
+    handleGroup.add(m1, m2);
+
+    handleGroup.userData = { action: 'toggleSeal', tooltip: 'Pull Chamber Door Handle' };
+    interactableObjects.push(handleGroup);
+    frontDoorPivot.add(handleGroup);
+
+    // Quantum Status Indicator Plate on the front door
+    const statusCanvas = document.createElement('canvas');
+    statusCanvas.width = 512;
+    statusCanvas.height = 128;
+    const sCtx = statusCanvas.getContext('2d');
+    const statusTex = new THREE.CanvasTexture(statusCanvas);
+    statusTex.colorSpace = THREE.SRGBColorSpace;
+    const statusPlateGeo = new THREE.PlaneGeometry(0.44, 0.11);
+    const statusPlateMat = new THREE.MeshBasicMaterial({ map: statusTex, transparent: true });
+    const statusPlate = new THREE.Mesh(statusPlateGeo, statusPlateMat);
+    statusPlate.position.set(0.90, 0.30, 0.02);
+    frontDoorPivot.add(statusPlate);
+    apparatus.frontDoorStatusLed = { ctx: sCtx, tex: statusTex, canvas: statusCanvas };
+
+    function updateFrontDoorBadge() {
+      if (!apparatus.frontDoorStatusLed) return;
+      const ctx = apparatus.frontDoorStatusLed.ctx;
+      const w = 512;
+      const h = 128;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#080d1a';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = appState.isBoxSealed ? '#f59e0b' : '#00f2fe';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(6, 6, w - 12, h - 12);
+
+      ctx.fillStyle = appState.isBoxSealed ? '#f59e0b' : '#00f2fe';
+      ctx.font = 'bold 36px "Outfit", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(appState.isBoxSealed ? '🔒 QUANTUM ISOLATION' : '👁️ CHAMBER UNSEALED', w / 2, h / 2);
+      apparatus.frontDoorStatusLed.tex.needsUpdate = true;
+    }
+    window.__updateFrontDoorBadge = updateFrontDoorBadge;
+    updateFrontDoorBadge();
+
+    apparatus.box.add(frontDoorPivot);
+
+    apparatus.box.userData = { action: 'toggleSeal', tooltip: 'Chamber Front Door' };
     interactableObjects.push(apparatus.box);
     modelRoot.add(apparatus.box);
 
@@ -890,7 +996,7 @@ function updatePanelButtonsText() {
       textColor: '#ffffff',
       subtextColor: '#fae8ff',
       title: '🔮 VISION: ACTIVE',
-      subtext: 'CHAMBER LID TRANSPARENT',
+      subtext: 'FRONT DOOR TRANSPARENT',
     });
   } else {
     drawPanelButtonFace(peekBtnCtx, BTN_TEX_W, BTN_TEX_H, {
@@ -900,7 +1006,7 @@ function updatePanelButtonsText() {
       textColor: '#ffffff',
       subtextColor: '#f3e8ff',
       title: '🔮 QUANTUM PEEK',
-      subtext: 'X-RAY CHAMBER LID',
+      subtext: 'X-RAY FRONT DOOR',
     });
   }
   peekBtnTex.needsUpdate = true;
@@ -1056,7 +1162,7 @@ function renderSpatialOrientationPanel() {
   ctx.font = '400 31px "Outfit", sans-serif';
   ctx.fillText('🤏 Middle Finger + Thumb (Both hands): Zoom & Reposition at hand level', 115, 715);
   ctx.fillText('🤏 Middle Finger + Thumb (One hand): Grab, Move & Place model anywhere', 115, 765);
-  ctx.fillText('🤏 Index Finger + Thumb: Grip chamber lid or Grab Bar to move', 115, 815);
+  ctx.fillText('🤏 Index Finger + Thumb: Grip front door handle to Seal / Open', 115, 815);
   ctx.fillText('🎮 Controller Grip (Squeeze): Grab & Place entire model in 3D', 115, 865);
 
   // Interactive Buttons on 3D Spatial Panel
@@ -1130,11 +1236,12 @@ function sealChamber() {
   sounds.playHammerStrike();
   sounds.startQuantumHum();
 
-  // Make glass frosted/opaque for quantum isolation
-  if (apparatus.glassWindow && apparatus.glassWindow.material) {
-    apparatus.glassWindow.material.opacity = appState.quantumPeek ? 0.25 : 0.95;
-    apparatus.glassWindow.material.roughness = 0.85;
+  // Solid opaque chamber door (only semi-transparent if Quantum Peek is explicitly activated)
+  if (apparatus.frontDoorMat) {
+    apparatus.frontDoorMat.transparent = appState.quantumPeek;
+    apparatus.frontDoorMat.opacity = appState.quantumPeek ? 0.28 : 1.0;
   }
+  if (window.__updateFrontDoorBadge) window.__updateFrontDoorBadge();
 
   resetApparatusVisuals();
   updateUI();
@@ -1146,11 +1253,12 @@ function observeChamber() {
   appState.stage = STATES.COLLAPSED;
   sounds.stopQuantumHum();
 
-  // Glass becomes transparent upon observation
-  if (apparatus.glassWindow && apparatus.glassWindow.material) {
-    apparatus.glassWindow.material.opacity = 0.45;
-    apparatus.glassWindow.material.roughness = 0.08;
+  // Front door is completely opaque and swings open to reveal interior
+  if (apparatus.frontDoorMat) {
+    apparatus.frontDoorMat.transparent = false;
+    apparatus.frontDoorMat.opacity = 1.0;
   }
+  if (window.__updateFrontDoorBadge) window.__updateFrontDoorBadge();
 
   // 50% Born Rule Quantum Probability
   const isDecayed = Math.random() < appState.decayProbability;
@@ -1204,11 +1312,16 @@ function observeChamber() {
 function toggleQuantumPeek() {
   sounds.playUiClick();
   appState.quantumPeek = !appState.quantumPeek;
-  if (apparatus.glassWindow && apparatus.glassWindow.material) {
+  if (apparatus.frontDoorMat) {
     if (appState.isBoxSealed) {
-      apparatus.glassWindow.material.opacity = appState.quantumPeek ? 0.25 : 0.95;
+      apparatus.frontDoorMat.transparent = appState.quantumPeek;
+      apparatus.frontDoorMat.opacity = appState.quantumPeek ? 0.28 : 1.0;
+    } else {
+      apparatus.frontDoorMat.transparent = false;
+      apparatus.frontDoorMat.opacity = 1.0;
     }
   }
+  if (window.__updateFrontDoorBadge) window.__updateFrontDoorBadge();
   updateUI();
 }
 
@@ -1220,10 +1333,11 @@ function resetExperiment() {
   appState.quantumPeek = false;
   sounds.stopQuantumHum();
 
-  if (apparatus.glassWindow && apparatus.glassWindow.material) {
-    apparatus.glassWindow.material.opacity = 0.45;
-    apparatus.glassWindow.material.roughness = 0.08;
+  if (apparatus.frontDoorMat) {
+    apparatus.frontDoorMat.transparent = false;
+    apparatus.frontDoorMat.opacity = 1.0;
   }
+  if (window.__updateFrontDoorBadge) window.__updateFrontDoorBadge();
 
   resetApparatusVisuals();
   updateUI();
@@ -1365,12 +1479,18 @@ function checkHandPinch(hand, isLeft) {
 
 function onHandPinchTrigger(pos) {
   sounds.ensureContext();
-  // Check if hand is near the box lid handle
-  if (apparatus.box) {
+  // Check if hand is near the front chamber door or handle
+  if (apparatus.frontDoor) {
+    const doorPos = new THREE.Vector3();
+    apparatus.frontDoor.getWorldPosition(doorPos);
+    if (pos.distanceTo(doorPos) < 0.65 * Math.max(modelRoot.scale.x, 0.4)) {
+      toggleChamberSeal();
+      return;
+    }
+  } else if (apparatus.box) {
     const boxPos = new THREE.Vector3();
     apparatus.box.getWorldPosition(boxPos);
-    boxPos.y += 0.45 * modelRoot.scale.y;
-    if (pos.distanceTo(boxPos) < 0.38 * Math.max(modelRoot.scale.x, 0.4)) {
+    if (pos.distanceTo(boxPos) < 0.45 * Math.max(modelRoot.scale.x, 0.4)) {
       toggleChamberSeal();
       return;
     }
@@ -1828,10 +1948,13 @@ renderer.setAnimationLoop(() => {
     mixer.update(delta);
   }
 
-  // 2. Smooth Chamber Lid Animation
+  // 2. Smooth Chamber Front Door Animation (Opens from frontside, top lid stays shut)
+  if (apparatus.frontDoor) {
+    const targetDoorAngle = appState.isBoxSealed ? 0.0 : -2.0; // 0 = Sealed flush, -2.0 rad = Swung wide open to the left
+    apparatus.frontDoor.rotation.y += (targetDoorAngle - apparatus.frontDoor.rotation.y) * delta * 5.5;
+  }
   if (apparatus.boxLid) {
-    const targetAngle = appState.isBoxSealed ? 0.0 : -1.9;
-    apparatus.boxLid.rotation.x += (targetAngle - apparatus.boxLid.rotation.x) * delta * 5.5;
+    apparatus.boxLid.rotation.x = 0.0; // Top roof remains permanently closed and solid
   }
 
   // 3. Cat Procedural Life / Breathing & Collapse Dynamics
