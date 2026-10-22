@@ -208,9 +208,10 @@
 
     <div id="gesture-legend">
       <div class="legend-title">🤲 Hand Gestures (VR):</div>
-      <div class="legend-item"><span>🤏 Middle+Thumb (2 Hands):</span> <span>Zoom In / Out model</span></div>
-      <div class="legend-item"><span>🤏 Middle+Thumb (1 Hand):</span> <span>Rotate entire model</span></div>
-      <div class="legend-item"><span>🤏 Index+Thumb:</span> <span>Grab lid to Seal / Open</span></div>
+      <div class="legend-item"><span>🤏 Middle+Thumb (1 Hand):</span> <span>Grab, Move & Place anywhere</span></div>
+      <div class="legend-item"><span>🤏 Middle+Thumb (2 Hands):</span> <span>Zoom & Reposition at hand level</span></div>
+      <div class="legend-item"><span>🤏 Index+Thumb:</span> <span>Grab lid to Seal / Move handle</span></div>
+      <div class="legend-item"><span>🎮 Controller Grip:</span> <span>Squeeze to Grab & Place model</span></div>
       <div class="legend-item"><span>👆 Point:</span> <span>Poke 3D table buttons</span></div>
     </div>
 
@@ -218,6 +219,9 @@
       <button id="btn-hud-seal" class="btn btn-amber">🔒 Seal Chamber</button>
       <button id="btn-hud-observe" class="btn btn-cyan">👁️ Observe & Collapse</button>
       <button id="btn-hud-peek" class="btn btn-purple">🔮 Quantum Peek</button>
+      <button id="btn-hud-raise" class="btn" title="Raise model (+12cm)">▲ Up</button>
+      <button id="btn-hud-lower" class="btn" title="Lower model (-12cm)">▼ Down</button>
+      <button id="btn-hud-reset-pos" class="btn" title="Reset model position and scale">📍 Reset Pos</button>
       <button id="btn-hud-reset" class="btn">🔄 Reset</button>
     </div>
 
@@ -237,10 +241,29 @@
         const mesh = window.__toggleQuantumPeek;
         if (mesh) mesh();
       });
+      document.getElementById('btn-hud-raise').addEventListener('click', () => {
+        const mesh = window.__raiseModel;
+        if (mesh) mesh();
+      });
+      document.getElementById('btn-hud-lower').addEventListener('click', () => {
+        const mesh = window.__lowerModel;
+        if (mesh) mesh();
+      });
+      document.getElementById('btn-hud-reset-pos').addEventListener('click', () => {
+        const mesh = window.__resetModelTransform;
+        if (mesh) mesh();
+      });
       document.getElementById('btn-hud-reset').addEventListener('click', () => {
         const mesh = window.__resetExperiment;
         if (mesh) mesh();
       });
+
+      // Ensure 3D panel and tactile button text re-render immediately once web fonts are ready
+      if (document.fonts) {
+        document.fonts.ready.then(() => {
+          if (window.__renderAllUI) window.__renderAllUI();
+        });
+      }
     </script>
   </body>
 </html>

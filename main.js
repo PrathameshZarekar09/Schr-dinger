@@ -264,6 +264,45 @@ function buildLabEnvironment() {
 
   const btnGeo = new THREE.CylinderGeometry(0.046, 0.052, 0.026, 24);
 
+  // Helper to create circular glowing labels for tabletop tactile buttons
+  function createTabletopBtnLabel(text, bgColor, strokeColor) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Outer circle
+    ctx.fillStyle = bgColor;
+    ctx.beginPath();
+    ctx.arc(128, 128, 116, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 12;
+    ctx.stroke();
+
+    // High contrast text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 50px "Outfit", system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 8;
+    ctx.fillText(text, 128, 128);
+
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      toneMapped: false,
+    });
+    const mesh = new THREE.Mesh(new THREE.CircleGeometry(0.045, 24), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.y = 0.0135;
+    return mesh;
+  }
+
   // Button A: Seal Box (Superposition)
   const sealMat = new THREE.MeshStandardMaterial({
     color: 0xf59e0b,
@@ -276,6 +315,7 @@ function buildLabEnvironment() {
   sealBtn.position.set(-0.20, 0, 0);
   sealBtn.name = 'Btn_Seal';
   sealBtn.userData = { action: 'toggleSeal', tooltip: 'Seal Chamber (Superposition)' };
+  sealBtn.add(createTabletopBtnLabel('SEAL', '#d97706', '#fde047'));
   buttonsGroup.add(sealBtn);
   interactableObjects.push(sealBtn);
   tableButtons.sealBtn = sealBtn;
@@ -292,6 +332,7 @@ function buildLabEnvironment() {
   observeBtn.position.set(0, 0, 0);
   observeBtn.name = 'Btn_Observe';
   observeBtn.userData = { action: 'observe', tooltip: 'Open & Observe (Collapse)' };
+  observeBtn.add(createTabletopBtnLabel('OBSERVE', '#0284c7', '#38bdf8'));
   buttonsGroup.add(observeBtn);
   interactableObjects.push(observeBtn);
   tableButtons.observeBtn = observeBtn;
@@ -308,12 +349,71 @@ function buildLabEnvironment() {
   resetBtn.position.set(0.20, 0, 0);
   resetBtn.name = 'Btn_Reset';
   resetBtn.userData = { action: 'reset', tooltip: 'Reset Paradox' };
+  resetBtn.add(createTabletopBtnLabel('RESET', '#7e22ce', '#c084fc'));
   buttonsGroup.add(resetBtn);
   interactableObjects.push(resetBtn);
   tableButtons.resetBtn = resetBtn;
 
   envGroup.add(buttonsGroup);
-  // Add table and buttons to modelRoot so they rotate and scale together
+
+  // 5. Tactile Workbench Grab Bar (Allows grabbing, moving & placing entire model)
+  const grabBarGroup = new THREE.Group();
+  grabBarGroup.position.set(0.25, 0.79, 1.01);
+
+  const grabRailGeo = new THREE.CylinderGeometry(0.018, 0.018, 1.25, 24);
+  grabRailGeo.rotateZ(Math.PI / 2);
+  const grabRailMat = new THREE.MeshStandardMaterial({
+    color: 0x00f2fe,
+    emissive: 0x0284c7,
+    emissiveIntensity: 0.75,
+    metalness: 0.9,
+    roughness: 0.15,
+  });
+  const grabRail = new THREE.Mesh(grabRailGeo, grabRailMat);
+  grabRail.name = 'Workbench_Grab_Rail';
+  grabRail.userData = { action: 'grabModel', tooltip: 'Grab & Move entire workbench' };
+  grabBarGroup.add(grabRail);
+  interactableObjects.push(grabRail);
+
+  // Standoff brackets
+  const bracketGeo = new THREE.BoxGeometry(0.026, 0.035, 0.05);
+  const bracketMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+  const b1 = new THREE.Mesh(bracketGeo, bracketMat);
+  b1.position.set(-0.60, 0, -0.025);
+  const b2 = new THREE.Mesh(bracketGeo, bracketMat);
+  b2.position.set(0.60, 0, -0.025);
+  grabBarGroup.add(b1);
+  grabBarGroup.add(b2);
+
+  // Grab handle label banner
+  const bannerCanvas = document.createElement('canvas');
+  bannerCanvas.width = 512;
+  bannerCanvas.height = 80;
+  const bCtx = bannerCanvas.getContext('2d');
+  bCtx.fillStyle = '#080e1a';
+  bCtx.fillRect(0, 0, 512, 80);
+  bCtx.strokeStyle = '#00f2fe';
+  bCtx.lineWidth = 4;
+  bCtx.strokeRect(4, 4, 504, 72);
+  bCtx.fillStyle = '#00f2fe';
+  bCtx.font = 'bold 30px "Outfit", sans-serif';
+  bCtx.textAlign = 'center';
+  bCtx.fillText('✥ GRAB & PLACE WORKBENCH', 256, 52);
+  const bannerTex = new THREE.CanvasTexture(bannerCanvas);
+  bannerTex.colorSpace = THREE.SRGBColorSpace;
+  const bannerGeo = new THREE.PlaneGeometry(0.50, 0.075);
+  const bannerMat = new THREE.MeshBasicMaterial({ map: bannerTex, transparent: true });
+  const banner = new THREE.Mesh(bannerGeo, bannerMat);
+  banner.position.set(0, 0.03, 0.015);
+  banner.rotation.x = -Math.PI / 8;
+  banner.name = 'Workbench_Grab_Banner';
+  banner.userData = { action: 'grabModel', tooltip: 'Grab & Move entire workbench' };
+  grabBarGroup.add(banner);
+  interactableObjects.push(banner);
+
+  envGroup.add(grabBarGroup);
+
+  // Add table, buttons, and grab bar to modelRoot so they rotate, scale, and move together
   modelRoot.add(envGroup);
 }
 buildLabEnvironment();
@@ -617,7 +717,195 @@ const haloMat = new THREE.MeshBasicMaterial({
 const haloMesh = new THREE.Mesh(haloGeo, haloMat);
 haloMesh.position.set(0, 0, -0.005);
 haloMesh.rotation.set(0, 0, 0);
+haloMesh.raycast = () => {}; // Prevent halo border from blocking raycasts
 spatialPanel.add(haloMesh);
+
+// ==========================================
+// 3D TACTILE BUTTONS ON DISPLAY PANEL (WITH CRISP HIGH-CONTRAST 3D TEXT LABELS)
+// ==========================================
+const panelButtons = {
+  sealBtn: null,
+  observeBtn: null,
+  peekBtn: null,
+};
+
+const BTN_TEX_W = 1024;
+const BTN_TEX_H = 256;
+
+// Create dedicated canvas & textures for each button on the display panel
+const sealBtnCanvas = document.createElement('canvas');
+sealBtnCanvas.width = BTN_TEX_W;
+sealBtnCanvas.height = BTN_TEX_H;
+const sealBtnCtx = sealBtnCanvas.getContext('2d');
+const sealBtnTex = new THREE.CanvasTexture(sealBtnCanvas);
+sealBtnTex.colorSpace = THREE.SRGBColorSpace;
+
+const obsBtnCanvas = document.createElement('canvas');
+obsBtnCanvas.width = BTN_TEX_W;
+obsBtnCanvas.height = BTN_TEX_H;
+const obsBtnCtx = obsBtnCanvas.getContext('2d');
+const obsBtnTex = new THREE.CanvasTexture(obsBtnCanvas);
+obsBtnTex.colorSpace = THREE.SRGBColorSpace;
+
+const peekBtnCanvas = document.createElement('canvas');
+peekBtnCanvas.width = BTN_TEX_W;
+peekBtnCanvas.height = BTN_TEX_H;
+const peekBtnCtx = peekBtnCanvas.getContext('2d');
+const peekBtnTex = new THREE.CanvasTexture(peekBtnCanvas);
+peekBtnTex.colorSpace = THREE.SRGBColorSpace;
+
+function drawPanelButtonFace(ctx, w, h, config) {
+  ctx.clearRect(0, 0, w, h);
+
+  // Gradient background
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, config.bgStart);
+  grad.addColorStop(1, config.bgEnd);
+
+  // Outer Rounded Pill
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.roundRect(10, 10, w - 20, h - 20, 38);
+  ctx.fill();
+
+  // Vibrant neon border
+  ctx.strokeStyle = config.borderColor;
+  ctx.lineWidth = 12;
+  ctx.stroke();
+
+  // Subtle inner glassy bevel
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(20, 20, w - 40, h - 40, 30);
+  ctx.stroke();
+
+  // Main Action Text (Large, High-Contrast, Crystal-Clear)
+  ctx.fillStyle = config.textColor || '#ffffff';
+  ctx.font = 'bold 58px "Outfit", system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
+  ctx.shadowBlur = 14;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 4;
+  ctx.fillText(config.title, w / 2, h * 0.40);
+
+  // Secondary State/Subtext Badge
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = config.subtextColor || 'rgba(255, 255, 255, 0.9)';
+  ctx.font = '600 28px "JetBrains Mono", monospace';
+  ctx.fillText(config.subtext, w / 2, h * 0.77);
+}
+
+function updatePanelButtonsText() {
+  // 1. Seal Chamber Button
+  if (appState.isBoxSealed) {
+    drawPanelButtonFace(sealBtnCtx, BTN_TEX_W, BTN_TEX_H, {
+      bgStart: '#0f766e',
+      bgEnd: '#042f2e',
+      borderColor: '#34d399',
+      textColor: '#ffffff',
+      subtextColor: '#a7f3d0',
+      title: '✓ CHAMBER SEALED',
+      subtext: 'QUANTUM ISOLATION ACTIVE',
+    });
+  } else {
+    drawPanelButtonFace(sealBtnCtx, BTN_TEX_W, BTN_TEX_H, {
+      bgStart: '#f59e0b',
+      bgEnd: '#b45309',
+      borderColor: '#fde047',
+      textColor: '#ffffff',
+      subtextColor: '#fef3c7',
+      title: '🔒 SEAL CHAMBER',
+      subtext: 'ENTER SUPERPOSITION',
+    });
+  }
+  sealBtnTex.needsUpdate = true;
+
+  // 2. Observe Chamber Button
+  drawPanelButtonFace(obsBtnCtx, BTN_TEX_W, BTN_TEX_H, {
+    bgStart: '#0284c7',
+    bgEnd: '#0369a1',
+    borderColor: '#38bdf8',
+    textColor: '#ffffff',
+    subtextColor: '#e0f2fe',
+    title: '👁️ OBSERVE & COLLAPSE',
+    subtext: 'MEASURE WAVEFUNCTION',
+  });
+  obsBtnTex.needsUpdate = true;
+
+  // 3. Quantum Peek Button
+  if (appState.quantumPeek) {
+    drawPanelButtonFace(peekBtnCtx, BTN_TEX_W, BTN_TEX_H, {
+      bgStart: '#9333ea',
+      bgEnd: '#c026d3',
+      borderColor: '#f0abfc',
+      textColor: '#ffffff',
+      subtextColor: '#fae8ff',
+      title: '🔮 VISION: ACTIVE',
+      subtext: 'CHAMBER LID TRANSPARENT',
+    });
+  } else {
+    drawPanelButtonFace(peekBtnCtx, BTN_TEX_W, BTN_TEX_H, {
+      bgStart: '#7e22ce',
+      bgEnd: '#581c87',
+      borderColor: '#c084fc',
+      textColor: '#ffffff',
+      subtextColor: '#f3e8ff',
+      title: '🔮 QUANTUM PEEK',
+      subtext: 'X-RAY CHAMBER LID',
+    });
+  }
+  peekBtnTex.needsUpdate = true;
+}
+
+const pBtnGeo = new THREE.BoxGeometry(0.34, 0.08, 0.022);
+const pBtnSideMat = new THREE.MeshStandardMaterial({
+  color: 0x0f172a,
+  roughness: 0.35,
+  metalness: 0.7,
+});
+
+const createPanelBtnMats = (tex) => {
+  const frontMat = new THREE.MeshBasicMaterial({
+    map: tex,
+    transparent: false,
+    toneMapped: false,
+  });
+  return [pBtnSideMat, pBtnSideMat, pBtnSideMat, pBtnSideMat, frontMat, pBtnSideMat];
+};
+
+// Button 1: Seal Chamber (Amber)
+const panelBtnSeal = new THREE.Mesh(pBtnGeo, createPanelBtnMats(sealBtnTex));
+panelBtnSeal.position.set(-0.382, -0.190, 0.016);
+panelBtnSeal.name = 'Panel_Btn_Seal';
+panelBtnSeal.userData = { action: 'toggleSeal', tooltip: 'Seal Chamber' };
+spatialPanel.add(panelBtnSeal);
+interactableObjects.push(panelBtnSeal);
+panelButtons.sealBtn = panelBtnSeal;
+
+// Button 2: Observe & Collapse (Cyan)
+const panelBtnObserve = new THREE.Mesh(pBtnGeo, createPanelBtnMats(obsBtnTex));
+panelBtnObserve.position.set(0.000, -0.190, 0.016);
+panelBtnObserve.name = 'Panel_Btn_Observe';
+panelBtnObserve.userData = { action: 'observe', tooltip: 'Observe Chamber (Collapse)' };
+spatialPanel.add(panelBtnObserve);
+interactableObjects.push(panelBtnObserve);
+panelButtons.observeBtn = panelBtnObserve;
+
+// Button 3: Quantum Peek (Purple)
+const panelBtnPeek = new THREE.Mesh(pBtnGeo, createPanelBtnMats(peekBtnTex));
+panelBtnPeek.position.set(0.382, -0.190, 0.016);
+panelBtnPeek.name = 'Panel_Btn_Peek';
+panelBtnPeek.userData = { action: 'togglePeek', tooltip: 'Quantum Peek Vision' };
+spatialPanel.add(panelBtnPeek);
+interactableObjects.push(panelBtnPeek);
+panelButtons.peekBtn = panelBtnPeek;
+
+// Initial render of panel button text textures
+updatePanelButtonsText();
 
 // Add to modelRoot so the screen stays exact side to the box when rotated or zoomed
 modelRoot.add(spatialPanel);
@@ -717,14 +1005,14 @@ function renderSpatialOrientationPanel() {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#f8fafc';
   ctx.font = 'bold 44px "Outfit", sans-serif';
-  ctx.fillText('2. Hand Gestures & Interactive Controls:', 85, 660);
+  ctx.fillText('2. Hand Gestures & Spatial Placement Controls:', 85, 660);
 
   ctx.fillStyle = '#e2e8f0';
   ctx.font = '400 31px "Outfit", sans-serif';
-  ctx.fillText('🤏 Middle Finger + Thumb (Both hands): Zoom in / out entire model', 115, 715);
-  ctx.fillText('🤏 Middle Finger + Thumb (One hand): Rotate entire model', 115, 765);
-  ctx.fillText('🤏 Index Finger + Thumb: Grip chamber lid to Seal / Open', 115, 815);
-  ctx.fillText('👆 Index Poke: Tap 3D buttons on tabletop or panel', 115, 865);
+  ctx.fillText('🤏 Middle Finger + Thumb (Both hands): Zoom & Reposition at hand level', 115, 715);
+  ctx.fillText('🤏 Middle Finger + Thumb (One hand): Grab, Move & Place model anywhere', 115, 765);
+  ctx.fillText('🤏 Index Finger + Thumb: Grip chamber lid or Grab Bar to move', 115, 815);
+  ctx.fillText('🎮 Controller Grip (Squeeze): Grab & Place entire model in 3D', 115, 865);
 
   // Interactive Buttons on 3D Spatial Panel
   const btnY = 985;
@@ -732,38 +1020,47 @@ function renderSpatialOrientationPanel() {
   const btnW = Math.round(w * 0.28); // ~573px
 
   // Button 1: Seal Box
-  ctx.fillStyle = appState.isBoxSealed ? '#475569' : '#f59e0b';
+  ctx.fillStyle = appState.isBoxSealed ? '#334155' : '#f59e0b';
+  ctx.strokeStyle = appState.isBoxSealed ? '#64748b' : '#fde047';
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(85, btnY, btnW, btnH, 20);
+  ctx.roundRect(85, btnY, btnW, btnH, 24);
   ctx.fill();
+  ctx.stroke();
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px "Outfit", sans-serif';
+  ctx.font = 'bold 38px "Outfit", sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText(appState.isBoxSealed ? '✓ Sealed (Isolated)' : '🔒 Seal Chamber', 85 + btnW / 2, btnY + 74);
+  ctx.fillText(appState.isBoxSealed ? '✓ Sealed (Isolated)' : '🔒 Seal Chamber', 85 + btnW / 2, btnY + 76);
 
   // Button 2: Observe
   ctx.fillStyle = '#00f2fe';
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(737, btnY, btnW, btnH, 20);
+  ctx.roundRect(737, btnY, btnW, btnH, 24);
   ctx.fill();
+  ctx.stroke();
   ctx.fillStyle = '#080c14';
-  ctx.font = 'bold 36px "Outfit", sans-serif';
-  ctx.fillText('👁️ Observe (Collapse)', 737 + btnW / 2, btnY + 74);
+  ctx.font = 'bold 38px "Outfit", sans-serif';
+  ctx.fillText('👁️ Observe (Collapse)', 737 + btnW / 2, btnY + 76);
 
   // Button 3: Quantum Vision Peek
-  ctx.fillStyle = '#a855f7';
+  ctx.fillStyle = appState.quantumPeek ? '#a855f7' : '#7e22ce';
+  ctx.strokeStyle = '#d8b4fe';
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.roundRect(1390, btnY, btnW, btnH, 20);
+  ctx.roundRect(1390, btnY, btnW, btnH, 24);
   ctx.fill();
+  ctx.stroke();
   ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 36px "Outfit", sans-serif';
-  ctx.fillText(appState.quantumPeek ? '🔮 Vision: ON' : '🔮 Quantum Peek', 1390 + btnW / 2, btnY + 74);
+  ctx.font = 'bold 38px "Outfit", sans-serif';
+  ctx.fillText(appState.quantumPeek ? '🔮 Vision: ON' : '🔮 Quantum Peek', 1390 + btnW / 2, btnY + 76);
 
   // Step instruction at bottom
   ctx.fillStyle = '#94a3b8';
   ctx.font = '500 32px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('💡 Tip: Pinch (Middle+Thumb) with 1 hand to rotate, or 2 hands to zoom in/out', w / 2, 1200);
+  ctx.fillText('💡 Tip: Pinch 1 hand (or Grip) to Grab & Place, or 2 hands to Zoom at hand level without sinking', w / 2, 1200);
 
   spatialTexture.needsUpdate = true;
 }
@@ -911,15 +1208,20 @@ function resetApparatusVisuals() {
 
 function updateUI() {
   renderSpatialOrientationPanel();
+  updatePanelButtonsText();
 }
 
 // ==========================================
 // POINTER & TOUCH / CLICK INTERACTIONS
 // ==========================================
+let isDesktopDraggingModel = false;
+const prevDesktopPointerPos = new THREE.Vector2();
+
 function onPointerDown(event) {
   sounds.ensureContext();
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  prevDesktopPointerPos.set(event.clientX, event.clientY);
 
   raycaster.setFromCamera(mouse, camera);
   const intersects = raycaster.intersectObjects(interactableObjects, true);
@@ -930,6 +1232,20 @@ function onPointerDown(event) {
 }
 window.addEventListener('pointerdown', onPointerDown);
 
+window.addEventListener('pointermove', (event) => {
+  if (isDesktopDraggingModel) {
+    const dx = (event.clientX - prevDesktopPointerPos.x) * 0.0035;
+    const dy = (event.clientY - prevDesktopPointerPos.y) * 0.0035;
+    modelRoot.position.x += dx;
+    modelRoot.position.y -= dy; // mouse Y inverted
+    prevDesktopPointerPos.set(event.clientX, event.clientY);
+  }
+});
+
+window.addEventListener('pointerup', () => {
+  isDesktopDraggingModel = false;
+});
+
 function handleObjectInteraction(hit) {
   let cur = hit.object;
   while (cur) {
@@ -938,6 +1254,11 @@ function handleObjectInteraction(hit) {
       if (act === 'toggleSeal') toggleChamberSeal();
       if (act === 'observe') observeChamber();
       if (act === 'reset') resetExperiment();
+      if (act === 'togglePeek') toggleQuantumPeek();
+      if (act === 'grabModel') {
+        isDesktopDraggingModel = true;
+        sounds.playUiClick();
+      }
       if (act === 'testGeiger') sounds.playGeigerClick(0.4);
       if (act === 'inspectCat') {
         if (appState.outcome === 'dead') {
@@ -953,13 +1274,12 @@ function handleObjectInteraction(hit) {
     if (cur.name === 'Spatial_Orientation_Panel' && hit.uv) {
       const u = hit.uv.x;
       const v = 1 - hit.uv.y; // UV is inverted in canvas Y
-      // Y range for buttons: v between 0.68 and 0.82
-      if (v >= 0.67 && v <= 0.82) {
-        if (u >= 0.04 && u <= 0.33) {
+      if (v >= 0.65 && v <= 0.85) {
+        if (u >= 0.03 && u <= 0.34) {
           toggleChamberSeal();
-        } else if (u >= 0.35 && u <= 0.65) {
+        } else if (u >= 0.35 && u <= 0.66) {
           observeChamber();
-        } else if (u >= 0.67 && u <= 0.96) {
+        } else if (u >= 0.67 && u <= 0.97) {
           toggleQuantumPeek();
         }
       }
@@ -1034,18 +1354,61 @@ function onHandPinchTrigger(pos) {
       return;
     }
   }
+
+  // Check if hand is near the Workbench Grab Bar handle
+  const grabPos = new THREE.Vector3();
+  modelRoot.localToWorld(grabPos.set(0.25, 0.79, 1.01));
+  if (pos.distanceTo(grabPos) < 0.38 * Math.max(modelRoot.scale.x, 0.4)) {
+    middleGestureState.oneHandActive = true;
+    middleGestureState.activeHandId = 0;
+    middleGestureState.prevPinchPos.copy(pos);
+    sounds.playUiClick();
+    return;
+  }
+
+  // Check if hand is near Spatial Panel buttons
+  const pBtns = [panelButtons.sealBtn, panelButtons.observeBtn, panelButtons.peekBtn];
+  for (const btn of pBtns) {
+    if (btn) {
+      const btnPos = new THREE.Vector3();
+      btn.getWorldPosition(btnPos);
+      if (pos.distanceTo(btnPos) < 0.22 * Math.max(modelRoot.scale.x, 0.35)) {
+        if (btn.userData.action === 'toggleSeal') toggleChamberSeal();
+        if (btn.userData.action === 'observe') observeChamber();
+        if (btn.userData.action === 'togglePeek') toggleQuantumPeek();
+        return;
+      }
+    }
+  }
+
+  // Far pinch raycasting from hand toward gaze/forward
+  const camPos = new THREE.Vector3();
+  camera.getWorldPosition(camPos);
+  const handRayDir = new THREE.Vector3().subVectors(pos, camPos).normalize();
+  raycaster.set(pos, handRayDir);
+  const hits = raycaster.intersectObjects(interactableObjects, true);
+  if (hits.length > 0) {
+    handleObjectInteraction(hits[0]);
+    return;
+  }
 }
 
 // ==========================================
-// MIDDLE FINGER + THUMB GESTURE TRACKING
-// Two Hands: Zoom In / Zoom Out (Scale entire model)
-// One Hand: Rotate entire model (Turntable rotation)
+// MODEL MANIPULATION GESTURE TRACKING
+// Two Hands: Zoom In / Out & Reposition (Bimanual RST anchored at hand midpoint)
+// One Hand: Grab, Move & Place anywhere in 3D + Rotate
 // ==========================================
 const middleGestureState = {
-  twoHandZoomActive: false,
+  // Two-hand Zoom & Placement (RST)
+  twoHandActive: false,
   initialHandDist: 0,
   initialModelScale: 1.0,
-  oneHandRotateActive: false,
+  initialMidpointLocal: new THREE.Vector3(),
+  initialAngle: 0,
+  initialRotY: 0,
+
+  // One-hand Grab & Place
+  oneHandActive: false,
   activeHandId: -1,
   prevPinchPos: new THREE.Vector3(),
 };
@@ -1111,69 +1474,293 @@ function processMiddleFingerModelGestures() {
     middleMarker1.visible = false;
   }
 
-  // 1. BOTH HANDS PINCHING (MIDDLE + THUMB) -> ZOOM IN / ZOOM OUT
+  // 1. BOTH HANDS PINCHING -> BIMANUAL ZOOM & REPOSITION (Pivots on hand midpoint)
   if (isPinch0 && isPinch1) {
-    middleGestureState.oneHandRotateActive = false;
+    middleGestureState.oneHandActive = false;
     const currentDist = pinch0.pinchPos.distanceTo(pinch1.pinchPos);
+    const currentMidpoint = new THREE.Vector3().addVectors(pinch0.pinchPos, pinch1.pinchPos).multiplyScalar(0.5);
+    const currentAngle = Math.atan2(
+      pinch1.pinchPos.x - pinch0.pinchPos.x,
+      pinch1.pinchPos.z - pinch0.pinchPos.z
+    );
 
-    if (!middleGestureState.twoHandZoomActive) {
-      middleGestureState.twoHandZoomActive = true;
+    if (!middleGestureState.twoHandActive) {
+      middleGestureState.twoHandActive = true;
       middleGestureState.initialHandDist = currentDist;
       middleGestureState.initialModelScale = modelRoot.scale.x;
+      // Convert world midpoint into local model coordinates for anchor preservation
+      middleGestureState.initialMidpointLocal.copy(modelRoot.worldToLocal(currentMidpoint.clone()));
+      middleGestureState.initialAngle = currentAngle;
+      middleGestureState.initialRotY = modelRoot.rotation.y;
     } else if (middleGestureState.initialHandDist > 0.01) {
+      // Scale (Zoom):
       const scaleRatio = currentDist / middleGestureState.initialHandDist;
       const targetScale = THREE.MathUtils.clamp(
         middleGestureState.initialModelScale * scaleRatio,
-        0.35,
-        2.8
+        0.25,
+        3.0
       );
       modelRoot.scale.setScalar(targetScale);
+
+      // Rotation around Y:
+      let deltaAngle = currentAngle - middleGestureState.initialAngle;
+      while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+      while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+      modelRoot.rotation.y = middleGestureState.initialRotY + deltaAngle;
+
+      // Position: Anchor model directly to the hands midpoint in world space!
+      // This prevents the model from dropping down to the floor when scaled down,
+      // and allows moving/repositioning the model in full 3D space with both hands.
+      const scaledOffset = middleGestureState.initialMidpointLocal
+        .clone()
+        .multiplyScalar(targetScale)
+        .applyEuler(modelRoot.rotation);
+      modelRoot.position.copy(currentMidpoint).sub(scaledOffset);
     }
   }
-  // 2. ONE HAND PINCHING (MIDDLE + THUMB) -> ROTATE ENTIRE MODEL
+  // 2. ONE HAND PINCHING -> GRAB, TRANSLATE & PLACE MODEL IN 3D SPACE
   else if (isPinch0 || isPinch1) {
-    middleGestureState.twoHandZoomActive = false;
+    middleGestureState.twoHandActive = false;
     const activePinch = isPinch0 ? pinch0 : pinch1;
     const activeHandId = isPinch0 ? 0 : 1;
 
-    if (!middleGestureState.oneHandRotateActive || middleGestureState.activeHandId !== activeHandId) {
-      middleGestureState.oneHandRotateActive = true;
+    if (!middleGestureState.oneHandActive || middleGestureState.activeHandId !== activeHandId) {
+      middleGestureState.oneHandActive = true;
       middleGestureState.activeHandId = activeHandId;
       middleGestureState.prevPinchPos.copy(activePinch.pinchPos);
     } else {
-      // Model center in world space
-      const modelCenter = new THREE.Vector3();
-      modelRoot.getWorldPosition(modelCenter);
+      // 3D Translation Delta: Hand moves -> Model moves with hand in X, Y, Z!
+      const deltaPos = new THREE.Vector3().subVectors(activePinch.pinchPos, middleGestureState.prevPinchPos);
+      modelRoot.position.add(deltaPos);
 
-      // Angle of hand around model center in X-Z horizontal plane
+      // Turntable rotation based on hand motion around model center
+      const focalWorld = modelRoot.localToWorld(new THREE.Vector3(0.20, 1.15, 0.20));
       const prevAngle = Math.atan2(
-        middleGestureState.prevPinchPos.x - modelCenter.x,
-        middleGestureState.prevPinchPos.z - modelCenter.z
+        middleGestureState.prevPinchPos.x - focalWorld.x,
+        middleGestureState.prevPinchPos.z - focalWorld.z
       );
       const currAngle = Math.atan2(
-        activePinch.pinchPos.x - modelCenter.x,
-        activePinch.pinchPos.z - modelCenter.z
+        activePinch.pinchPos.x - focalWorld.x,
+        activePinch.pinchPos.z - focalWorld.z
       );
 
       let deltaAngle = currAngle - prevAngle;
       while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
       while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
 
-      // Linear horizontal drag delta
-      const deltaX = activePinch.pinchPos.x - middleGestureState.prevPinchPos.x;
-
-      // Apply turntable rotation around Y axis
-      const rotationStep = deltaAngle + deltaX * 1.6;
-      modelRoot.rotation.y += rotationStep;
+      if (Math.abs(deltaAngle) < 0.25) {
+        modelRoot.rotation.y += deltaAngle * 0.9;
+      }
 
       middleGestureState.prevPinchPos.copy(activePinch.pinchPos);
     }
   }
   // 3. NEITHER HAND PINCHING
   else {
-    middleGestureState.twoHandZoomActive = false;
-    middleGestureState.oneHandRotateActive = false;
+    middleGestureState.twoHandActive = false;
+    middleGestureState.oneHandActive = false;
     middleGestureState.activeHandId = -1;
+  }
+}
+
+// ==========================================
+// VR CONTROLLER SQUEEZE (GRIP) TO GRAB & PLACE
+// ==========================================
+const controllerGrabState = {
+  active0: false,
+  active1: false,
+  prevPos0: new THREE.Vector3(),
+  prevPos1: new THREE.Vector3(),
+  initialDist: 0,
+  initialScale: 1.0,
+  initialMidpointLocal: new THREE.Vector3(),
+  initialAngle: 0,
+  initialRotY: 0,
+};
+
+function onControllerSqueezeStart(id) {
+  sounds.ensureContext();
+  if (id === 0) {
+    controllerGrabState.active0 = true;
+    controllerGrabState.prevPos0.copy(controller0.position);
+  } else {
+    controllerGrabState.active1 = true;
+    controllerGrabState.prevPos1.copy(controller1.position);
+  }
+
+  if (controllerGrabState.active0 && controllerGrabState.active1) {
+    controllerGrabState.initialDist = controller0.position.distanceTo(controller1.position);
+    controllerGrabState.initialScale = modelRoot.scale.x;
+    const mid = new THREE.Vector3().addVectors(controller0.position, controller1.position).multiplyScalar(0.5);
+    controllerGrabState.initialMidpointLocal.copy(modelRoot.worldToLocal(mid.clone()));
+    controllerGrabState.initialAngle = Math.atan2(
+      controller1.position.x - controller0.position.x,
+      controller1.position.z - controller0.position.z
+    );
+    controllerGrabState.initialRotY = modelRoot.rotation.y;
+  }
+}
+
+function onControllerSqueezeEnd(id) {
+  if (id === 0) controllerGrabState.active0 = false;
+  else controllerGrabState.active1 = false;
+}
+
+controller0.addEventListener('squeezestart', () => onControllerSqueezeStart(0));
+controller0.addEventListener('squeezeend', () => onControllerSqueezeEnd(0));
+controller1.addEventListener('squeezestart', () => onControllerSqueezeStart(1));
+controller1.addEventListener('squeezeend', () => onControllerSqueezeEnd(1));
+
+function processControllerGrab() {
+  if (controllerGrabState.active0 && controllerGrabState.active1) {
+    const curDist = controller0.position.distanceTo(controller1.position);
+    const curMid = new THREE.Vector3().addVectors(controller0.position, controller1.position).multiplyScalar(0.5);
+    const curAngle = Math.atan2(
+      controller1.position.x - controller0.position.x,
+      controller1.position.z - controller0.position.z
+    );
+
+    if (controllerGrabState.initialDist > 0.01) {
+      const ratio = curDist / controllerGrabState.initialDist;
+      const targetScale = THREE.MathUtils.clamp(controllerGrabState.initialScale * ratio, 0.25, 3.0);
+      modelRoot.scale.setScalar(targetScale);
+
+      let deltaAngle = curAngle - controllerGrabState.initialAngle;
+      while (deltaAngle > Math.PI) deltaAngle -= 2 * Math.PI;
+      while (deltaAngle < -Math.PI) deltaAngle += 2 * Math.PI;
+      modelRoot.rotation.y = controllerGrabState.initialRotY + deltaAngle;
+
+      const offset = controllerGrabState.initialMidpointLocal
+        .clone()
+        .multiplyScalar(targetScale)
+        .applyEuler(modelRoot.rotation);
+      modelRoot.position.copy(curMid).sub(offset);
+    }
+  } else if (controllerGrabState.active0) {
+    const delta = new THREE.Vector3().subVectors(controller0.position, controllerGrabState.prevPos0);
+    modelRoot.position.add(delta);
+    controllerGrabState.prevPos0.copy(controller0.position);
+  } else if (controllerGrabState.active1) {
+    const delta = new THREE.Vector3().subVectors(controller1.position, controllerGrabState.prevPos1);
+    modelRoot.position.add(delta);
+    controllerGrabState.prevPos1.copy(controller1.position);
+  }
+}
+
+// ==========================================
+// VR DIRECT TOUCH / POKE & CONTROLLER RAYCASTING
+// ==========================================
+let lastPokeTime = 0;
+
+function checkIndexFingerPoke(hand) {
+  if (!hand || !hand.joints) return;
+  const indexTip = hand.joints['index-finger-tip'];
+  if (!indexTip || !indexTip.position) return;
+  if (!isFinite(indexTip.position.x)) return;
+
+  const now = performance.now();
+  if (now - lastPokeTime < 380) return; // 380ms debounce
+
+  const tipPos = indexTip.position;
+
+  // 1. Direct Touch Poke on Display Panel 3D buttons
+  const pBtns = [panelButtons.sealBtn, panelButtons.observeBtn, panelButtons.peekBtn];
+  for (const btn of pBtns) {
+    if (btn) {
+      const btnPos = new THREE.Vector3();
+      btn.getWorldPosition(btnPos);
+      const hitDist = tipPos.distanceTo(btnPos);
+      if (hitDist < 0.12 * Math.max(modelRoot.scale.x, 0.35)) {
+        lastPokeTime = now;
+        btn.position.z = 0.006; // Visual physical press in
+        setTimeout(() => {
+          btn.position.z = 0.016; // Return to resting position
+        }, 160);
+        sounds.playUiClick();
+        if (btn.userData.action === 'toggleSeal') toggleChamberSeal();
+        if (btn.userData.action === 'observe') observeChamber();
+        if (btn.userData.action === 'togglePeek') toggleQuantumPeek();
+        return;
+      }
+    }
+  }
+
+  // 2. Direct Touch Poke on Tabletop 3D buttons
+  const tBtns = [tableButtons.sealBtn, tableButtons.observeBtn, tableButtons.resetBtn];
+  for (const btn of tBtns) {
+    if (btn) {
+      const btnPos = new THREE.Vector3();
+      btn.getWorldPosition(btnPos);
+      const hitDist = tipPos.distanceTo(btnPos);
+      if (hitDist < 0.08 * Math.max(modelRoot.scale.x, 0.35)) {
+        lastPokeTime = now;
+        btn.position.y = -0.005; // Visual press in
+        setTimeout(() => {
+          btn.position.y = 0.0;
+        }, 160);
+        sounds.playUiClick();
+        if (btn.userData.action === 'toggleSeal') toggleChamberSeal();
+        if (btn.userData.action === 'observe') observeChamber();
+        if (btn.userData.action === 'reset') resetExperiment();
+        return;
+      }
+    }
+  }
+}
+
+// Controller Trigger Click (Select)
+function onControllerSelect(controller) {
+  sounds.ensureContext();
+  const tempMatrix = new THREE.Matrix4();
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
+  const rayOrigin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
+  const rayDir = new THREE.Vector3(0, 0, -1).applyMatrix4(tempMatrix).normalize();
+
+  raycaster.set(rayOrigin, rayDir);
+  const hits = raycaster.intersectObjects(interactableObjects, true);
+  if (hits.length > 0) {
+    const hitObj = hits[0].object;
+    if (hitObj.name && hitObj.name.startsWith('Panel_Btn_')) {
+      hitObj.position.z = 0.006;
+      setTimeout(() => {
+        hitObj.position.z = 0.016;
+      }, 160);
+    }
+    handleObjectInteraction(hits[0]);
+  }
+}
+
+controller0.addEventListener('select', () => onControllerSelect(controller0));
+controller1.addEventListener('select', () => onControllerSelect(controller1));
+
+function updateControllerRay(controller, rayMesh) {
+  if (!controller || !rayMesh) return;
+  const tempMatrix = new THREE.Matrix4();
+  tempMatrix.identity().extractRotation(controller.matrixWorld);
+  const rayOrigin = new THREE.Vector3().setFromMatrixPosition(controller.matrixWorld);
+  const rayDir = new THREE.Vector3(0, 0, -1).applyMatrix4(tempMatrix).normalize();
+
+  raycaster.set(rayOrigin, rayDir);
+  const hits = raycaster.intersectObjects(interactableObjects, true);
+
+  // Clear hover scale on panel buttons
+  if (panelButtons.sealBtn && panelButtons.sealBtn.scale.x > 1.0) panelButtons.sealBtn.scale.set(1.0, 1.0, 1.0);
+  if (panelButtons.observeBtn && panelButtons.observeBtn.scale.x > 1.0) panelButtons.observeBtn.scale.set(1.0, 1.0, 1.0);
+  if (panelButtons.peekBtn && panelButtons.peekBtn.scale.x > 1.0) panelButtons.peekBtn.scale.set(1.0, 1.0, 1.0);
+
+  if (hits.length > 0) {
+    rayMesh.scale.z = Math.min(hits[0].distance / 1.2, 2.5);
+    rayMesh.material.opacity = 0.95;
+    rayMesh.material.color.setHex(0x00f2fe);
+
+    // Subtle hover scale on panel buttons
+    if (hits[0].object.name && hits[0].object.name.startsWith('Panel_Btn_')) {
+      hits[0].object.scale.set(1.03, 1.05, 1.0);
+    }
+  } else {
+    rayMesh.scale.z = 1.0;
+    rayMesh.material.opacity = 0.35;
+    rayMesh.material.color.setHex(0x00f2fe);
   }
 }
 
@@ -1244,13 +1831,24 @@ renderer.setAnimationLoop(() => {
     spatialPanel.rotation.set(0, 0, 0);
   }
 
-  // 5. Hand Gestures:
+  // 5. Hand & Controller Gestures for Grabbing, Placing & Scaling
   // Index Finger + Thumb for Chamber Lid & Table Buttons
   checkHandPinch(hand0, true);
   checkHandPinch(hand1, false);
 
-  // Middle Finger + Thumb for Zoom (2 Hands) and Rotate (1 Hand)
+  // Direct touch poke on display panel and table buttons
+  checkIndexFingerPoke(hand0);
+  checkIndexFingerPoke(hand1);
+
+  // Controller Rays hover update
+  updateControllerRay(controller0, ray0);
+  updateControllerRay(controller1, ray1);
+
+  // Middle Finger + Thumb for Zoom (2 Hands) and Grab/Place (1 Hand)
   processMiddleFingerModelGestures();
+
+  // VR Controller Grip (Squeeze) for Grab/Place and Zoom
+  processControllerGrab();
 
   // 6. Ambient Random Geiger Clicks (Background Radiation)
   if (appState.time - appState.lastGeigerClick > 2.8 + Math.random() * 3.0) {
@@ -1270,10 +1868,30 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Height adjustment and model repositioning handlers
+function raiseModel(amount = 0.12) {
+  modelRoot.position.y += amount;
+  sounds.playUiClick();
+}
+function lowerModel(amount = 0.12) {
+  modelRoot.position.y = Math.max(-0.6, modelRoot.position.y - amount);
+  sounds.playUiClick();
+}
+function resetModelTransform() {
+  modelRoot.position.set(0, 0, 0);
+  modelRoot.rotation.set(0, 0, 0);
+  modelRoot.scale.set(1, 1, 1);
+  sounds.playUiClick();
+}
+
 // Expose action handlers for HUD controls
 window.__toggleChamberSeal = toggleChamberSeal;
 window.__observeChamber = observeChamber;
 window.__toggleQuantumPeek = toggleQuantumPeek;
 window.__resetExperiment = resetExperiment;
+window.__raiseModel = raiseModel;
+window.__lowerModel = lowerModel;
+window.__resetModelTransform = resetModelTransform;
+window.__renderAllUI = updateUI;
 
 console.log("Schrödinger's Cat WebXR Simulation loaded successfully.");
