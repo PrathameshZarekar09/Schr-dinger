@@ -160,7 +160,7 @@ const indexMarker1 = new THREE.Mesh(tipGeo, tipMat1);
 scene.add(indexMarker0);
 scene.add(indexMarker1);
 
-// Interaction markers at middle fingertips (Middle + Thumb pinch: Zoom & Rotate entire model)
+// Interaction markers at thumb tips (Middle + Thumb pinch: Zoom & Rotate entire model)
 const middleTipGeo = new THREE.SphereGeometry(0.013, 16, 16);
 const middleTipMat0 = new THREE.MeshStandardMaterial({
   color: 0xa855f7,
@@ -1431,6 +1431,8 @@ function getMiddlePinchData(hand) {
     isPinching,
     dist,
     pinchPos,
+    thumbPos: tPos,
+    middlePos: mPos,
   };
 }
 
@@ -1441,12 +1443,12 @@ function processMiddleFingerModelGestures() {
   const isPinch0 = !!(pinch0 && pinch0.isPinching);
   const isPinch1 = !!(pinch1 && pinch1.isPinching);
 
-  // Update visual markers at middle fingertips
+  // Update visual markers to align directly on thumb tips
   if (pinch0) {
     middleMarker0.visible = true;
-    middleMarker0.position.copy(pinch0.pinchPos);
+    middleMarker0.position.copy(pinch0.thumbPos);
     if (isPinch0) {
-      middleMarker0.scale.setScalar(1.8);
+      middleMarker0.scale.setScalar(1.6);
       middleMarker0.material.color.setHex(0x00f2fe);
       middleMarker0.material.emissive.setHex(0x00f2fe);
     } else {
@@ -1460,9 +1462,9 @@ function processMiddleFingerModelGestures() {
 
   if (pinch1) {
     middleMarker1.visible = true;
-    middleMarker1.position.copy(pinch1.pinchPos);
+    middleMarker1.position.copy(pinch1.thumbPos);
     if (isPinch1) {
-      middleMarker1.scale.setScalar(1.8);
+      middleMarker1.scale.setScalar(1.6);
       middleMarker1.material.color.setHex(0x00f2fe);
       middleMarker1.material.emissive.setHex(0x00f2fe);
     } else {
